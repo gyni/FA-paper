@@ -1,0 +1,3965 @@
+---
+title: "ukb_fa"
+author: "GuiyanNi - `r format(Sys.time(), '%d %B %Y')`"
+date: "23/09/2020"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_knit$set(root.dir = '/tmp')
+```
+
+```{r}
+library(ggplot2)
+library(patchwork)
+library(gridExtra)
+library(grid)
+
+#require(lme4)
+```
+
+## UKB 
+### Phenotypic data management
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+options(stringsAsFactors=FALSE)
+
+dat1<-read.table('11395_12505_UKBiobank_assymetry_fields_200319.tab',header=TRUE)
+dat2<-read.table('24101_12505_UKBiobank_assymetry_fields_200319.tab',header=TRUE)
+dat<-merge(dat1,dat2,by='f.eid',all=FALSE)
+dim(dat1);dim(dat2);dim(dat)
+```
+
+
+```{r}
+#---------------------------------------------
+### visit 1 and two
+###fat percentage left = 
+#(arm fat mass left+ leg fat mass left) /(
+#arm fat mass left+ leg fat mass left  + arm fat-free mass  left + leg fat-free mass left
+#)*100
+
+dat$f.fat_pct_left.0.0<-(dat[,'f.23124.0.0'] +dat[,'f.23116.0.0'])/(
+	dat[,'f.23124.0.0'] +dat[,'f.23116.0.0'] 
+	+dat[,'f.23125.0.0']+dat[,'f.23117.0.0']
+	)*100
+
+
+dat$f.fat_pct_left.1.0<-(dat[,'f.23124.1.0'] +dat[,'f.23116.1.0'])/(
+	dat[,'f.23124.1.0'] +dat[,'f.23116.1.0'] 
+	+dat[,'f.23125.1.0']+dat[,'f.23117.1.0']
+	)*100
+
+#---------------------------------------------
+###fat percentage right = 
+#arm fat mass right + leg fat mass right /(
+#arm fat mass right + leg fat mass right + arm fat-free mass right + leg fat-free mass right
+#)*100
+
+dat$f.fat_pct_right.0.0<-(dat[,'f.23120.0.0'] +dat[,'f.23112.0.0'])/(
+	dat[,'f.23120.0.0'] +dat[,'f.23112.0.0'] 
+   +dat[,'f.23121.0.0'] +dat[,'f.23113.0.0']
+	)*100
+
+dat$f.fat_pct_right.1.0<-(dat[,'f.23120.1.0'] +dat[,'f.23112.1.0'])/(
+	dat[,'f.23120.1.0'] +dat[,'f.23112.1.0'] 
+   +dat[,'f.23121.1.0'] +dat[,'f.23113.1.0']
+	)*100
+
+#>>>>>>>>>>>>>>>>>
+
+dat$f2.fat_pct_left.0.0<-(
+    (dat[,'f.23124.0.0']/(dat[,'f.23124.0.0']+dat[,'f.23125.0.0']))
+    +
+    (dat[,'f.23116.0.0']/(dat[,'f.23116.0.0']+dat[,'f.23117.0.0']))
+    )/2*100
+
+
+dat$f2.fat_pct_left.1.0<-(
+    (dat[,'f.23124.1.0']/(dat[,'f.23124.1.0']+dat[,'f.23125.1.0']))
+    +
+    (dat[,'f.23116.1.0']/(dat[,'f.23116.1.0']+dat[,'f.23117.1.0']))
+    )/2*100
+
+
+
+#---------------------------------------------
+###fat percentage right = 
+#arm fat mass right + leg fat mass right /(
+#arm fat mass right + leg fat mass right + arm fat-free mass right + leg fat-free mass right
+#)*100
+
+dat$f2.fat_pct_right.0.0<-(
+  (dat[,'f.23120.0.0']/(dat[,'f.23120.0.0']+dat[,'f.23121.0.0']))
+  +
+  (dat[,'f.23112.0.0']/(dat[,'f.23112.0.0']+dat[,'f.23113.0.0']))
+    )/2*100
+
+dat$f2.fat_pct_right.1.0<-(
+  (dat[,'f.23120.1.0']/(dat[,'f.23120.1.0']+dat[,'f.23121.1.0']))
+  +
+  (dat[,'f.23112.1.0']/(dat[,'f.23112.1.0']+dat[,'f.23113.1.0']))
+    )/2*100
+
+```
+
+```{r}
+### phenotype selected
+pheno_sel<-read.table('ukbb/data/phen/ukb_pheno_selected.txt',header=TRUE)
+pheno_sel_final<-matrix(c(
+'logmar_r1','f.5201.0.0','logmar_r2','f.5201.1.0',
+'logmar_l1','f.5208.0.0','logmar_l2','f.5208.1.0',
+
+'srt_r1','f.20021.0.0','srt_r2','f.20021.1.0',
+'srt_l1','f.20019.0.0','srt_l2','f.20019.1.0',
+
+'bmd_r1','f.4125.0.0','bmd_r2','f.4125.1.0',
+'bmd_l1','f.4106.0.0','bmd_l2','f.4106.1.0',
+
+'hgs_r1','f.47.0.0','hgs_r2','f.47.1.0',
+'hgs_l1','f.46.0.0','hgs_l2','f.46.1.0',
+
+'fatpct_r1',"f.fat_pct_right.0.0",'fatpct_r2',"f.fat_pct_right.1.0",
+'fatpct_l1',"f.fat_pct_left.0.0" ,'fatpct_l2',"f.fat_pct_left.1.0",
+
+'FATPCT2_r1',"f2.fat_pct_right.0.0",'FATPCT2_r2',"f2.fat_pct_right.1.0",
+'FATPCT2_l1',"f2.fat_pct_left.0.0" ,'FATPCT2_l2',"f2.fat_pct_left.1.0"),ncol=2,byrow=TRUE)
+colnames(pheno_sel_final)<-c('idx','fidcode')
+
+```
+
+
+
+```{r}
+datsel<-dat[,c(1,match(pheno_sel_final[,2],colnames(dat)))]
+colnames(datsel)<-c('FID',pheno_sel_final[,1])
+fam<-read.table("fluctuating_asymmetry/ukb/relative/ukbEUR_imp_chr22_v3_impQC.fam")
+datsel<-datsel[is.element(datsel$FID,fam[,1]),]
+dim(datsel)
+```
+# {.tabset }
+## all individuals
+### Number of observations of each side/visit
+```{r}
+nrobs<-apply(datsel,2,function(x){sum(!is.na(x))})
+nrobs<-matrix(nrobs[-1],ncol=4,byrow=TRUE)
+rownames(nrobs)<-c('logmar','srt','bmd','hgs','fatpct','FACPCT2')
+colnames(nrobs)<-c('r1','r2','l1','l2')
+nrobs<-nrobs[,c(1,3,2,4)]  
+nrobs
+```
+### Phenotypic correlation before adjusting covariates (includes relatives)
+
+```{r}
+rawpheno_cor<-NULL
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  cat(trait,' ')
+  wo<-grep(trait,colnames(datsel))
+  corone<-cor(datsel[,wo],use='pairwise.complete.obs',method='pearson')
+  corone<-c(trait,corone[lower.tri(corone, diag = FALSE)])
+  rawpheno_cor<-rbind(rawpheno_cor,corone)
+}
+colnames(rawpheno_cor)<-c('tarit','r1_r2','r1_l1','r1_l2','r2_l1','r2_l2','l1_l2')
+rownames(rawpheno_cor)<-NULL
+rawpheno_cor<-as.data.frame(rawpheno_cor)
+rawpheno_cor[,2:ncol(rawpheno_cor)]<-sapply(rawpheno_cor[,2:ncol(rawpheno_cor)],function(x){round(as.numeric(x),3)})
+rawpheno_cor
+```
+
+
+```{r}
+### read in covariates
+
+ageatvisit<-read.table('ukbb/data/phen/age_visit.tab',header=TRUE)
+colnames(ageatvisit)<-c('f.eid','ageatv1','ageatv2','ageatv3')
+age<-read.table('ukbb/data/phen/age_sex.tab',header=TRUE)
+colnames(age)[2:3]<-c('sex','yob')
+assessment<-read.table('ukbb/data/phen/assessment.tab',header=TRUE)
+assessment<-assessment[,c('f.eid','f.54.0.0')]
+colnames(assessment)[2]<-'assesscenter'
+
+
+pc<-read.table('ukbb/data/pcs/ukbEUR_PC40_HM3excludeRegions_v2.txt',header=TRUE)
+pc<-pc[,c(1,3:12)]
+
+dim(pc)
+fix_cov<-merge(age,pc,by.x='f.eid',by.y='FID',all=FALSE)
+fix_cov<-merge(ageatvisit,fix_cov,by='f.eid',all=FALSE)
+fix_cov<-merge(assessment,fix_cov,by='f.eid',all=FALSE)
+dim(fix_cov)
+
+### handedness
+wasid<-colnames(dat)
+hand<-cbind(f.eid=dat[,1],dat[,substr(wasid,1,nchar(wasid)-4)=='f.1707'])
+colnames(hand)[-1]<-c('hand1','hand2','hand3')
+hand[hand==-3]<-NA
+#head(hand)
+### whether handedness are the same in difference visits
+handconsis<-apply(hand[,-1],1,function(x){sum(x[1]==x[2])})
+table(handconsis,useNA='always')
+dim(hand)
+fix_cov<-merge(hand,fix_cov,by='f.eid',all.y=TRUE)
+dim(fix_cov)
+
+### set as NA for individuals with inconsistent handedness
+fix_cov[which(fix_cov$hand1!=fix_cov$hand2),2:ncol(fix_cov)]<-NA
+
+datsel<-merge(datsel,fix_cov,by.x='FID',by.y='f.eid',all.x=TRUE)
+datsel<-datsel[!is.na(datsel$sex),]
+
+```
+
+### Histogram of raw phenotype (includes relatives)
+
+
+```{r,eval = T, fig.width = 12, warning=FALSE,fig.height = 4}
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  cat(trait,' ')
+
+    idx='r1'
+    
+    p_r1<-ggplot(datsel,aes(x=datsel[,paste(trait,'r1',sep='_')],fill=as.factor(hand1)))+
+      #geom_histogram(binwidth = 1/50)+
+      geom_histogram(bins = 30)+
+      scale_fill_manual(values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x=paste(trait,idx,sep='_'),y='')+
+      theme(
+        legend.position='none'
+        ,axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+
+    idx='l1'
+    p_l1<-ggplot(datsel,aes(x=datsel[,paste(trait,'l1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual(values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x=paste(trait,idx,sep='_'),y='')+
+      theme(
+        legend.position='none'
+        ,axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )    
+ 
+    idx='r2'
+    p_r2<-ggplot(datsel,aes(x=datsel[,paste(trait,'r2',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual(values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x=paste(trait,idx,sep='_'),y='')+
+      theme(
+        legend.position='none'
+        ,axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+
+    idx='l2'
+    p_l2<-ggplot(datsel,aes(x=datsel[,paste(trait,'l2',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x=paste(trait,idx,sep='_'),y='')+
+      theme(
+        #legend.title = element_text()
+        axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )  
+    
+    print(p_r1+p_l1+p_r2+p_l2+ plot_layout(ncol=4),widths=c(0.8,0.8,0.8,1.6))
+
+}
+
+```
+
+### L-R,|L-R|,(L-R)^2
+```{r}
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  for(v in c(1,2)){
+      cat(trait,v,' ')
+      sl<-paste(trait,'_l',v,sep='')
+      sr<-paste(trait,'_r',v,sep='')
+      dattemp<-datsel[,sl]-datsel[,sr]
+      datsel[,paste(trait,'_lmr_',v,sep='')]<-dattemp
+      datsel[,paste(trait,'_lmrsq_',v,sep='')]<-dattemp^2
+      datsel[,paste(trait,'_lmrabs_',v,sep='')]<-abs(dattemp)
+      datsel[,paste(trait,'_lpravg_',v,sep='')]<-(datsel[,sl]+datsel[,sr])/2
+    
+  }
+}
+
+```
+
+
+### Histogram of FA using raw phenotype (includes relatives)
+
+```{r,eval = T, fig.width = 10, warning=FALSE,fig.height = 5}
+
+for (fa in c('lmr','lmrsq','lmrabs','lpravg')){
+   cat(fa,' ')
+    idx='logmar'
+    pt1<-ggplot(datsel,aes(x=datsel[,paste('logmar',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('logmar',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+    
+    idx='srt'
+    pt2<-ggplot(datsel,aes(x=datsel[,paste('srt',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('srt',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+    idx='bmd'
+    pt3<-ggplot(datsel,aes(x=datsel[,paste('bmd',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('bmd',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+    
+    idx='hgs'
+    pt4<-ggplot(datsel,aes(x=datsel[,paste('hgs',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('hgs',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+    
+    idx='fatpct'
+    pt5<-ggplot(datsel,aes(x=datsel[,paste('fatpct',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('fatpct',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+ 
+        
+    idx='FATPCT2'
+    pt6<-ggplot(datsel,aes(x=datsel[,paste('FATPCT2',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('fatpct2',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+    
+    print(pt1+pt2+pt3+pt4+pt5+pt6+ plot_layout(ncol=3))
+
+}
+
+```
+### DA plot
+```{r}
+library(e1071)
+ ss=7
+for (fa in c('lmr')){
+   cat(fa,' ')
+    idx='logmar'
+    dattemp<-datsel[,paste(idx,fa,'1',sep='_')]
+    myt2<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt1<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.1<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.1<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt1<-ggplot(datsel,aes(x=datsel[,paste('logmar',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='logMAR',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      #annotate('text',y= max(mtcars$wt), x =max(mtcars$mpg), label = myt1, hjust=1)+
+      #annotate('text',y= max(mtcars$wt)*0.95, x =max(mtcars$mpg), label = myt2, hjust=1)
+      annotate('text',y= 32000, x =Inf, label = myt0, hjust=1,size =ss)+
+      annotate('text',y= 30000, x =Inf, label = myt0sd.1, hjust=1,size =ss)+
+      annotate('text',y= 28000, x =Inf, label = myt1, hjust=1,size =ss)+
+      annotate('text',y= 26000, x =Inf, label = myt2, hjust=1,size =ss)+
+      annotate('text',y= 24000, x =Inf, label = myt0nr.1, hjust=1,size =ss)
+    
+    idx='srt'
+    dattemp<-datsel[,paste(idx,fa,'1',sep='_')]
+    myt3<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt4<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt3.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.2<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.2<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt2<-ggplot(datsel,aes(x=datsel[,paste('srt',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='SRT',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 47000, x =Inf, label = myt3.0, hjust=1,size =ss)+
+      annotate('text',y= 44000, x =Inf, label = myt0sd.2, hjust=1,size =ss)+
+      annotate('text',y= 41000, x =Inf, label = myt3, hjust=1,size =ss)+
+      annotate('text',y= 39000, x =Inf, label = myt4, hjust=1,size =ss)+
+      annotate('text',y= 37000, x =Inf, label = myt0nr.2, hjust=1,size =ss)
+    
+
+    idx='bmd'
+    dattemp<-datsel[,paste(idx,fa,'1',sep='_')]
+    myt5<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt6<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt5.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.3<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.3<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt3<-ggplot(datsel,aes(x=datsel[,paste('bmd',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='BMD',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 90000, x =Inf, label = myt5.0, hjust=1,size =ss)+
+      annotate('text',y= 85000, x =Inf, label = myt0sd.3, hjust=1,size =ss)+
+      annotate('text',y= 80000, x =Inf, label = myt5, hjust=1,size =ss)+
+      annotate('text',y= 75000, x =Inf, label = myt6, hjust=1,size =ss)+
+     annotate('text',y= 70000, x =Inf, label = myt0nr.3, hjust=1,size =ss)+
+     annotate('text',y= 90000, x =-13, label = "A)", hjust=1,size =ss)
+    
+    idx='hgs'
+    dattemp<-datsel[,paste('hgs',fa,'1',sep='_')]
+    myt7<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt8<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt7.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.4<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.4<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt4<-ggplot(datsel,aes(x=datsel[,paste('hgs',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='HGS',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 188000, x =Inf, label = myt7.0, hjust=1,size =ss)+
+      annotate('text',y= 178000, x =Inf, label = myt0sd.4, hjust=1,size =ss)+
+      annotate('text',y= 168000, x =Inf, label = myt7, hjust=1,size =ss)+
+       annotate('text',y=158000, x =Inf, label = myt8, hjust=1,size =ss)+
+      annotate('text',y= 148000, x =Inf, label = myt0nr.4, hjust=1,size =ss)
+    
+    
+    idx='fatpct'
+    pt5<-ggplot(datsel,aes(x=datsel[,paste('fatpct',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='Fat%',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+ 
+        
+    idx='FATPCT2'
+    dattemp<-datsel[,paste('FATPCT2',fa,'1',sep='_')]
+    myt9<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt10<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt9.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.5<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.5<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt6<-ggplot(datsel,aes(x=datsel[,paste('FATPCT2',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='Fat%',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 270000, x =Inf, label = myt9.0, hjust=1,size =ss)+
+      annotate('text',y= 255000, x =Inf, label = myt0sd.5, hjust=1,size =ss)+
+      annotate('text',y= 240000, x =Inf, label = myt9, hjust=1,size =ss)+
+      annotate('text',y= 225000, x =Inf, label = myt10, hjust=1,size =ss)+
+      annotate('text',y= 215000, x =Inf, label = myt0nr.4, hjust=1,size =ss)
+    
+    plot_da<-pt3+pt6+pt4+pt1+pt2 +plot_layout(ncol=3)
+ggsave(plot_da, width =14, height = 14, filename = "fluctuating_asymmetry/plot/hist_lmr_da_mean_sd_nr.pdf")
+
+}
+
+```
+### DA plot no nr
+```{r}
+library(e1071)
+ ss=7
+for (fa in c('lmr')){
+   cat(fa,' ')
+    idx='logmar'
+    dattemp<-datsel[,paste(idx,fa,'1',sep='_')]
+    myt2<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt1<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.1<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.1<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt1<-ggplot(datsel,aes(x=datsel[,paste('logmar',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='logMAR',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      #annotate('text',y= max(mtcars$wt), x =max(mtcars$mpg), label = myt1, hjust=1)+
+      #annotate('text',y= max(mtcars$wt)*0.95, x =max(mtcars$mpg), label = myt2, hjust=1)
+      annotate('text',y= 32000, x =Inf, label = myt0, hjust=1,size =ss)+
+      annotate('text',y= 30000, x =Inf, label = myt0sd.1, hjust=1,size =ss)+
+      annotate('text',y= 28000, x =Inf, label = myt1, hjust=1,size =ss)+
+      annotate('text',y= 26000, x =Inf, label = myt2, hjust=1,size =ss)
+    
+    idx='srt'
+    dattemp<-datsel[,paste(idx,fa,'1',sep='_')]
+    myt3<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt4<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt3.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.2<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.2<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt2<-ggplot(datsel,aes(x=datsel[,paste('srt',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='SRT',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 47000, x =Inf, label = myt3.0, hjust=1,size =ss)+
+      annotate('text',y= 44000, x =Inf, label = myt0sd.2, hjust=1,size =ss)+
+      annotate('text',y= 41000, x =Inf, label = myt3, hjust=1,size =ss)+
+      annotate('text',y= 38000, x =Inf, label = myt4, hjust=1,size =ss)
+    
+
+    idx='bmd'
+    dattemp<-datsel[,paste(idx,fa,'1',sep='_')]
+    myt5<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt6<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt5.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.3<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.3<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt3<-ggplot(datsel,aes(x=datsel[,paste('bmd',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='BMD',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 90000, x =Inf, label = myt5.0, hjust=1,size =ss)+
+      annotate('text',y= 85000, x =Inf, label = myt0sd.3, hjust=1,size =ss)+
+      annotate('text',y= 80000, x =Inf, label = myt5, hjust=1,size =ss)+
+      annotate('text',y= 75000, x =Inf, label = myt6, hjust=1,size =ss)+
+     annotate('text',y= 90000, x =-13, label = "A)", hjust=1,size =ss)
+    
+    idx='hgs'
+    dattemp<-datsel[,paste('hgs',fa,'1',sep='_')]
+    myt7<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt8<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt7.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.4<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.4<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt4<-ggplot(datsel,aes(x=datsel[,paste('hgs',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='HGS',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 188000, x =Inf, label = myt7.0, hjust=1,size =ss)+
+      annotate('text',y= 178000, x =Inf, label = myt0sd.4, hjust=1,size =ss)+
+      annotate('text',y= 168000, x =Inf, label = myt7, hjust=1,size =ss)+
+       annotate('text',y=158000, x =Inf, label = myt8, hjust=1,size =ss)
+    
+    
+    idx='fatpct'
+    pt5<-ggplot(datsel,aes(x=datsel[,paste('fatpct',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='Fat%',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+ 
+        
+    idx='FATPCT2'
+    dattemp<-datsel[,paste('FATPCT2',fa,'1',sep='_')]
+    myt9<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt10<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt9.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.5<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    myt0nr.5<-paste0("Nr: ",sum(!is.na(dattemp)))
+    
+    pt6<-ggplot(datsel,aes(x=datsel[,paste('FATPCT2',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='Fat%',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 270000, x =Inf, label = myt9.0, hjust=1,size =ss)+
+      annotate('text',y= 255000, x =Inf, label = myt0sd.5, hjust=1,size =ss)+
+      annotate('text',y= 240000, x =Inf, label = myt9, hjust=1,size =ss)+
+      annotate('text',y= 225000, x =Inf, label = myt10, hjust=1,size =ss)
+    
+    plot_da<-pt3+pt6+pt4+pt1+pt2 +plot_layout(ncol=3)
+ggsave(plot_da, width =14, height = 14, filename = "fluctuating_asymmetry/plot/hist_lmr_da_mean_sd.pdf")
+
+}
+
+```
+
+### Histogram of FA using raw phenotype (includes relatives), colored by handednss
+
+```{r,eval = T, fig.width = 12, warning=FALSE,fig.height = 5}
+
+dattemp<-datsel[!is.na(datsel$hand1),]
+for (fa in c('lmr','lmrsq','lmrabs','lpravg')){
+   cat(fa,' ')
+    idx='logmar'
+    pt1<-ggplot(dattemp,aes(x=dattemp[,paste('logmar',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+
+      labs(x=paste('logmar',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+
+    idx='srt'
+    pt2<-ggplot(dattemp,aes(x=dattemp[,paste('srt',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('srt',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+    idx='bmd'
+    pt3<-ggplot(dattemp,aes(x=dattemp[,paste('bmd',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('bmd',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        #,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+    
+    idx='hgs'
+    pt4<-ggplot(dattemp,aes(x=dattemp[,paste('hgs',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('hgs',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+    
+    idx='fatpct'
+    pt5<-ggplot(dattemp,aes(x=dattemp[,paste('fatpct',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('fatpct',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+     
+    idx='FATPCT2'
+    pt6<-ggplot(dattemp,aes(x=dattemp[,paste('FATPCT2',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('FATPCT2',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+        
+    print(pt1+pt2+pt3+pt4+pt5+ pt6+
+              #plot_layout(ncol=5,widths=c(rep(1/6,4),2/6))
+            plot_layout(ncol=3)
+          #,widths=c(rep(1.2/4,2),2.6/4)
+          )
+
+}
+```
+
+### Checking the normality of L-R via QQ-plot
+should should outliers, keep only individuals with mean+/-4sd
+
+```{r,eval = T, fig.width = 8, warning=FALSE,fig.height = 6 }
+
+
+p1=ggplot(datsel,aes(sample=datsel$logmar_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',ylabs='Emprical',title= 'logMAR L-R')
+  
+p2=ggplot(datsel,aes(sample=datsel$srt_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='SRT L-R')
+p3=ggplot(datsel,aes(sample=datsel$bmd_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title = 'BMD L-R')
+p4=ggplot(datsel,aes(sample=datsel$hgs_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title = 'hgs L-R')
+p5=ggplot(datsel,aes(sample=datsel$fatpct_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='Fat percentage L-R')
+p6=ggplot(datsel,aes(sample=datsel$FATPCT2_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='Fat percentage L-R')
+
+p1+p2+p3+p4+p5+ p6+plot_layout(ncol=3,nrow=2)
+
+```
+###
+```{r}
+discobs<-NULL
+for(v in c(1,2)){
+  for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  was<-paste(trait,'_lmr_',v,sep='')
+  tempone<-c(was,round(mean(datsel[,was],na.rm=TRUE),4),round(median(datsel[,was],na.rm=TRUE),4),sum(datsel[,was]>0,na.rm=TRUE),sum(datsel[,was]<0,na.rm=TRUE))
+  discobs<-rbind(discobs,tempone)
+  }
+}
+discobs<-as.data.frame(discobs)
+rownames(discobs)<-NULL
+colnames(discobs)<-c('trait','mean','median','L>R','L<R')
+discobs
+#<0 means left < right; right is larger
+#>0 means left > right; left is larger
+```
+### Within each sex, and visit, exclude outliers(4sd), then adjust phenotype with agt at visting, accessment center, handedness,PC10, INT
+```{r}
+female<-datsel[datsel$sex==0,]
+male<-datsel[datsel$sex==1,]
+
+npc<-10
+
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  for(vt in c('l1','r1','l2','r2')){
+    wasvt<-substr(vt,2,2)
+    wo<-paste(trait,vt,sep='_')
+### female
+
+	wona<-c(which(female[,wo]>(mean(female[,wo],na.rm=TRUE)
+		+4*sd(female[,wo],na.rm=TRUE))), which(female[,wo]< (mean(female[,wo],na.rm=TRUE)
+		-4*sd(female[,wo],na.rm=TRUE))))
+	
+  if(length(wona)>0){female[wona,wo]<-NA}	
+	### adjust aga at 
+  fit<-as.formula(paste(wo,'~ageatv',wasvt,'+factor(assesscenter)+hand1+',paste('PC',1:npc,sep='',collapse='+'),sep=''))
+
+	lmr<-lm(fit,data=female)
+	female[-lmr$na.action,wo]<-qnorm((rank(lmr$residuals)-0.5)/length(lmr$residuals))
+	female[+lmr$na.action,wo]<-NA
+	rm(wona)
+### male
+	wona<-c(which(male[,wo]>mean(male[,wo],na.rm=TRUE)
+		+4*sd(male[,wo],na.rm=TRUE)), which(male[,wo]< mean(male[,wo],na.rm=TRUE)
+		-4*sd(male[,wo],na.rm=TRUE)))
+	if(length(wona)>0){male[wona,wo]<-NA}
+
+	lmrmale<-lm(fit,data=male)
+	male[-lmrmale$na.action,wo]<-qnorm((rank(lmrmale$residuals)-0.5)/length(lmrmale$residuals))
+	male[+lmrmale$na.action,wo]<-NA
+	
+  }
+  
+}
+datsel_qc<-rbind(female,male)
+dim(datsel_qc)
+#dim(datsel)
+
+```
+### QCed,L-R,|L-R|,(L-R)^2
+```{r}
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  for(v in c(1,2)){
+      cat(trait,v,' ')
+      sl<-paste(trait,'_l',v,sep='')
+      sr<-paste(trait,'_r',v,sep='')
+      dattemp<-datsel_qc[,sl]-datsel_qc[,sr]
+      datsel_qc[,paste(trait,'_lmr_',v,sep='')]<-dattemp
+      datsel_qc[,paste(trait,'_lmrsq_',v,sep='')]<-dattemp^2
+      datsel_qc[,paste(trait,'_lmrabs_',v,sep='')]<-abs(dattemp)
+      datsel_qc[,paste(trait,'_lpravg_',v,sep='')]<-(datsel_qc[,sl]+datsel_qc[,sr])/2
+  }
+}
+
+```
+### QCed:checking the normality of L-R via QQ-plot
+```{r,eval = T, fig.width = 8, warning=FALSE,fig.height = 6}
+
+
+p1=ggplot(datsel_qc,aes(sample=datsel_qc$logmar_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title= 'logMAR L-R')
+  
+p2=ggplot(datsel_qc,aes(sample=datsel_qc$srt_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='SRT L-R')
+p3=ggplot(datsel_qc,aes(sample=datsel_qc$bmd_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title = 'BMD L-R')
+p4=ggplot(datsel_qc,aes(sample=datsel_qc$hgs_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title = 'hgs L-R')
+p5=ggplot(datsel_qc,aes(sample=datsel_qc$fatpct_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='Fat percentage L-R')
+p6=ggplot(datsel_qc,aes(sample=datsel_qc$FATPCT2_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='Fat percentage L-R')
+
+p1+p2+p3+p4+p5+p6+ plot_layout(ncol=3,nrow=2)
+
+```
+```{r}
+discobs_qc<-NULL
+for(v in c(1,2)){
+  for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  was<-paste(trait,'_lmr_',v,sep='')
+  tempone<-c(was,round(mean(datsel_qc[,was],na.rm=TRUE),4),round(median(datsel_qc[,was],na.rm=TRUE),4),sum(datsel_qc[,was]>0,na.rm=TRUE),sum(datsel_qc[,was]<0,na.rm=TRUE))
+  discobs_qc<-rbind(discobs_qc,tempone)
+  }
+}
+discobs_qc<-as.data.frame(discobs_qc)
+rownames(discobs_qc)<-NULL
+colnames(discobs_qc)<-c('trait','mean','median','L>R','L<R')
+discobs_qc
+#<0 means left < right; right is larger
+#>0 means left > right; left is larger
+```
+
+
+### Number of observation after QC
+```{r}
+datqced<-datsel_qc[,substr(colnames(datsel_qc),1,2)!='PC']
+datqced<-datqced[,!is.element(colnames(datqced),c('hand2','hand3','assesscenter','ageatv1','ageatv2','ageatv3'))]
+
+nrobs_qced<-apply(datqced,2,function(x)sum(!is.na(x)))
+
+nrobs_qced<-matrix(nrobs_qced[c(2:25)],ncol=4,byrow=TRUE)
+rownames(nrobs_qced)<-c('logmar','srt','bmd','hgs','fatpct','FATPCT2')
+colnames(nrobs_qced)<-c('r1','r2','l1','l2')
+nrobs_qced<-nrobs_qced[,c(1,3,2,4)]  
+nrobs_qced
+```
+### DA plot QCed
+```{r}
+
+library(e1071)
+ ss=7
+for (fa in c('lmr')){
+   cat(fa,' ')
+    idx='logmar'
+    dattemp<-datsel_qc[,paste(idx,fa,'1',sep='_')]
+    myt2<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt1<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.1<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    
+    pt1<-ggplot(datsel_qc,aes(x=datsel_qc[,paste('logmar',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='logMAR',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      #annotate('text',y= max(mtcars$wt), x =max(mtcars$mpg), label = myt1, hjust=1)+
+      #annotate('text',y= max(mtcars$wt)*0.95, x =max(mtcars$mpg), label = myt2, hjust=1)
+      annotate('text',y= 32000, x =Inf, label = myt0, hjust=1,size =ss)+
+      annotate('text',y= 30000, x =Inf, label = myt0sd.1, hjust=1,size =ss)+
+      annotate('text',y= 28000, x =Inf, label = myt1, hjust=1,size =ss)+
+      annotate('text',y= 26000, x =Inf, label = myt2, hjust=1,size =ss)
+    
+    idx='srt'
+    dattemp<-datsel_qc[,paste(idx,fa,'1',sep='_')]
+    myt3<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt4<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt3.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.2<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    
+    pt2<-ggplot(datsel_qc,aes(x=datsel_qc[,paste('srt',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='SRT',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 47000, x =Inf, label = myt3.0, hjust=1,size =ss)+
+      annotate('text',y= 44000, x =Inf, label = myt0sd.2, hjust=1,size =ss)+
+      annotate('text',y= 41000, x =Inf, label = myt3, hjust=1,size =ss)+
+      annotate('text',y= 38000, x =Inf, label = myt4, hjust=1,size =ss)
+    
+
+    idx='bmd'
+    dattemp<-datsel_qc[,paste(idx,fa,'1',sep='_')]
+    myt5<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt6<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt5.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.3<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    
+    pt3<-ggplot(datsel_qc,aes(x=datsel_qc[,paste('bmd',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='BMD',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 90000, x =Inf, label = myt5.0, hjust=1,size =ss)+
+      annotate('text',y= 85000, x =Inf, label = myt0sd.3, hjust=1,size =ss)+
+      annotate('text',y= 80000, x =Inf, label = myt5, hjust=1,size =ss)+
+      annotate('text',y= 75000, x =Inf, label = myt6, hjust=1,size =ss)+
+      annotate('text',y= 90000, x =-7, label = "B)", hjust=1,size =ss)
+    
+    idx='hgs'
+    dattemp<-datsel_qc[,paste('hgs',fa,'1',sep='_')]
+    myt7<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt8<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt7.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.4<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    
+    pt4<-ggplot(datsel_qc,aes(x=datsel_qc[,paste('hgs',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='HGS',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 188000, x =Inf, label = myt7.0, hjust=1,size =ss)+
+      annotate('text',y= 178000, x =Inf, label = myt0sd.4, hjust=1,size =ss)+
+      annotate('text',y= 168000, x =Inf, label = myt7, hjust=1,size =ss)+
+       annotate('text',y=158000, x =Inf, label = myt8, hjust=1,size =ss)
+    
+    
+    idx='fatpct'
+    pt5<-ggplot(datsel_qc,aes(x=datsel_qc[,paste('fatpct',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='Fat%',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+ 
+        
+    idx='FATPCT2'
+    dattemp<-datsel_qc[,paste('FATPCT2',fa,'1',sep='_')]
+    myt9<-paste0("skewness: ",round(skewness(dattemp,na.rm=T),2))
+    myt10<-paste0("kurtosis: ",round(kurtosis(dattemp,na.rm=T),2))
+    myt9.0<-paste0("Mean: ",round(mean(dattemp,na.rm=T),2))
+    myt0sd.5<-paste0("SD: ",round(sd(dattemp,na.rm=T),2))
+    
+    pt6<-ggplot(datsel_qc,aes(x=datsel_qc[,paste('FATPCT2',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x='Fat%',y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )+
+      annotate('text',y= 325000, x =Inf, label = myt9.0, hjust=1,size =ss)+
+      annotate('text',y= 305000, x =Inf, label = myt0sd.5, hjust=1,size =ss)+
+      annotate('text',y= 285000, x =Inf, label = myt9, hjust=1,size =ss)+
+      annotate('text',y= 265000, x =Inf, label = myt10, hjust=1,size =ss)
+
+
+    plot_da<-pt3+pt6+pt4+pt1+pt2 +plot_layout(ncol=3)
+ggsave(plot_da, width =14, height = 14, filename = "fluctuating_asymmetry/plot/hist_lmr_da_mean_sd_qc.pdf")
+
+}
+ 
+```
+
+### cor(|L-R|,avg(L+R))
+```{r}
+cor_lmrabs_lpravg_eurqced<-NULL
+for (vt in c(1,2)){
+  for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  
+    tone<-paste(trait,'_lmrabs','_',vt,sep='')
+    ttwo<-paste(trait,'_lpravg','_',vt,sep='')
+    corone<-c(trait,vt,cor(datqced[,tone],datqced[,ttwo],use='pairwise.complete.obs'))
+    cor_lmrabs_lpravg_eurqced<-rbind(cor_lmrabs_lpravg_eurqced,corone)
+  }
+}
+colnames(cor_lmrabs_lpravg_eurqced)<-c('trait','visit','cor')
+rownames(cor_lmrabs_lpravg_eurqced)<-NULL
+cor_lmrabs_lpravg_eurqced<-as.data.frame(cor_lmrabs_lpravg_eurqced)
+cor_lmrabs_lpravg_eurqced[,2:3]<-sapply(cor_lmrabs_lpravg_eurqced[,2:3],as.numeric)
+cor_lmrabs_lpravg_eurqced
+
+```
+
+### read in inbreeding coef ...
+```{r}
+### inbreeding coef
+fcoef<-read.table('fluctuating_asymmetry/ukb/Genotyped_Based_F.txt',header=TRUE)
+fcoef<-fcoef[,c('IID','Froh_1.5','Funi_001')]
+dim(fcoef)
+### relative lifetime reproductive success
+female_rlrs<-read.table('fluctuating_asymmetry/ukb/rLRS/rLRS_UKBv2_female_adj_sc.pheno',header=TRUE)
+male_rlrs<-read.table('fluctuating_asymmetry/ukb/rLRS/rLRS_UKBv2_male_adj_sc.pheno',header=TRUE)
+male_rlrs$sex='M'
+female_rlrs$sex='F'
+rlrs<-rbind(female_rlrs,male_rlrs)
+dim(rlrs)
+
+rlrs<-merge(rlrs,male_rlrs[,c('FID','rLRS')],by='FID',all.x=TRUE)
+rlrs<-merge(rlrs,female_rlrs[,c('FID','rLRS')],by='FID',all.x=TRUE)
+colnames(rlrs)<-c('FID','IID','rLRS','sex','rLRSm','rLRSf')
+rlrs<-rlrs[,-2]
+### disease account
+### from Angli Xue
+disease<-read.table('fluctuating_asymmetry/ukb/disease/ukb_v2_18_diseases_match_gera.phen',header=TRUE)
+dim(disease)
+# 502629     22
+disease<-disease[,c(1,22)]
+colnames(disease)[2]<-'diseaseSUM_OF_CASES'
+dattemp1<-merge(datsel_qc,fcoef,by.x='FID',by.y='IID',all.x=TRUE)
+dattemp1<-merge(dattemp1,rlrs,by='FID',all.x=TRUE)
+ukb_fa_final<-merge(dattemp1,disease,by='FID',all.x=TRUE)
+fittemp<-as.formula(paste('diseaseSUM_OF_CASES~sex.x+yob+',paste('PC',1:npc,sep='',collapse='+'),sep=''))
+tempadj<-lm(fittemp,data=ukb_fa_final)
+ukb_fa_final[,'disease']<-NA
+if(length(tempadj$na.action)!=0){
+    ukb_fa_final[-tempadj$na.action,'disease']<-tempadj$residuals
+  }else{
+    ukb_fa_final[,'disease']<-tempadj$residuals
+}
+
+```
+### plot of disease count, inbreeding, fitness
+```{r}
+
+pdisease<-ggplot(ukb_fa_final,aes(x=disease))+
+      geom_histogram(bins = 50,fill='darkseagreen')+
+      #scale_fill_manual(values=c('darkseagreen'))+
+      labs(x='Disease count')+
+      theme(
+        axis.text=element_text(size=rel(1.6))
+        ,axis.title=element_text(size=rel(1.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+ prLRS<-ggplot(ukb_fa_final,aes(x=rLRS))+
+      geom_histogram(bins = 50,fill='darkseagreen')+
+      #scale_fill_manual(values=c('darkseagreen'))+
+      labs(x='rLRS')+
+      theme(
+        axis.text=element_text(size=rel(1.6))
+        ,axis.title=element_text(size=rel(1.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+  pFroh<-ggplot(ukb_fa_final,aes(x=Froh_1.5))+
+      geom_histogram(bins = 300,fill='darkseagreen')+
+      #scale_fill_manual(values=c('darkseagreen'))+
+      labs(x='Froh1.5')+
+coord_cartesian(xlim=c(0,0.05))+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+   pfuni<-ggplot(ukb_fa_final,aes(x=Funi_001))+
+      geom_histogram(bins = 300,fill='darkseagreen')+
+      #scale_fill_manual(values=c('darkseagreen'))+
+      labs(x='Funi')+
+coord_cartesian(xlim=c(-0.05,0.05))+
+      theme(
+        axis.text=element_text(size=rel(1.6))
+        ,axis.title=element_text(size=rel(1.6))
+        ,plot.margin = margin(0.2, 0.4, 0.5, 0.1, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+   #pstressor<-grid.arrange(pdisease,prLRS,pFroh,pfuni,nrow=2)
+   pstressor<-grid.arrange(pdisease,prLRS,pfuni,nrow=1)
+#p_lm
+
+ggsave(pstressor, width =14, height = 6, filename = "fluctuating_asymmetry/plot/hist_stressors3p.pdf")
+
+
+    
+```
+
+### linear regression: univariate
+```{r}
+
+faidx<-NULL
+for(v in c(1,2)){
+  for (fa in c('lmrabs','lmrsq','lpravg')){
+    for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+      #if(fa=='')
+      was<-paste(trait,'_',fa,'_',v,sep='')
+      faidx<-c(faidx,was)
+    }
+  }
+}
+mlidx<-rbind(faidx[1:12],rep(faidx[13:18],2))
+
+phenidx<-c('Froh_1.5','Funi_001','rLRS','rLRSm','rLRSf','disease','diseaseSUM_OF_CASES')
+
+lmr_reger_intxy=NULL
+lmr_reger_intyx=NULL
+
+for(i in faidx){
+  for (j in phenidx){
+    #cat(i,j,'\n')
+    
+    fit<-lm(ukb_fa_final[,i]~ukb_fa_final[,j])
+    fitres<-summary(fit)$coefficients[2,]
+    resone<-c(unlist(strsplit(i,'_')),'FAy',i,j,summary(fit)$r.squared,fitres)
+    lmr_reger_intxy<-rbind(lmr_reger_intxy,resone)
+    
+    #cat(2,'\n')
+    fityx<-lm(ukb_fa_final[,j]~ukb_fa_final[,i])
+    fitresyx<-summary(fityx)$coefficients[2,]
+    resoneyx<-c(unlist(strsplit(i,'_')),'FAx',j,i,summary(fityx)$r.squared,fitresyx)
+    lmr_reger_intyx<-rbind(lmr_reger_intyx,resoneyx)
+  }
+}
+
+lmr_reger_int<-rbind(lmr_reger_intxy,lmr_reger_intyx)
+colnames(lmr_reger_int)<-c('trait','faidx','visit','WoFA','Y','X','R2','Est','se','tvalue','pvalue')
+rownames(lmr_reger_int)<-NULL
+lmr_reger_int<-as.data.frame(lmr_reger_int)
+lmr_reger_int[,c('R2','Est','se','tvalue','pvalue')]<-sapply(lmr_reger_int[,c('R2','Est','se','tvalue','pvalue')],as.numeric)
+#lmr_reger_int[,c('Est','se','tvalue')]<-sapply(lmr_reger_int[,c('Est','se','tvalue')],function(x){round(x,4)})
+#lmr_reger_int$pvalue<-as.numeric(format(lmr_reger_int$pvalue, digits=3))
+lmr_reger_int$sig<-NA
+lmr_reger_int[lmr_reger_int$pvalue<0.05,'sig']<-TRUE
+
+lmr_reger_int$sig20<-NA
+lmr_reger_int[lmr_reger_int$pvalue<0.05/20,'sig20']<-TRUE
+
+
+#write.table(lmr_reger_int,file='fluctuating_asymmetry/table/fa_int_regerssion_related_200929.txt'
+#            ,col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+
+#lmr_reger_int[!is.na(lmr_reger_int$sig),]
+
+lm_rel_fax<-lmr_reger_int[!is.na(lmr_reger_int$sig)&lmr_reger_int$WoFA=='FAx',]
+lm_rel_fax<-lm_rel_fax[order(lm_rel_fax$visit,lm_rel_fax$Y,lm_rel_fax$X,lm_rel_fax$Est),]
+lm_rel_fax_abs<-lm_rel_fax[lm_rel_fax$faidx=='lmrabs',]
+lm_rel_fax_sq<-lm_rel_fax[lm_rel_fax$faidx=='lmrsq',]
+lm_rel_fax_lpravg<-lm_rel_fax[lm_rel_fax$faidx=='lpravg',]
+
+lm_rel_fax_sq[,c('Y','X','R2','Est','se','pvalue','sig20')]
+lm_rel_fax_abs[,c('Y','X','R2','Est','se','pvalue','sig20')]
+lm_rel_fax_lpravg[,c('Y','X','R2','Est','se','pvalue','sig20')]
+
+```
+
+### multiple linear regression
+```{r}
+
+lmr_reger_intmulti<-NULL
+for (i in c(1:ncol(mlidx))){
+  for ( j in phenidx){
+    #cat(i,j)
+    
+    fitml<-lm(ukb_fa_final[,j]~ukb_fa_final[,mlidx[1,i]]+ukb_fa_final[,mlidx[2,i]])
+    fitmlsmy<-summary(fitml)
+    fitresyx<-c(fitmlsmy$coefficients[1,],fitmlsmy$coefficients[2,],fitmlsmy$coefficients[3,])
+    resoneyx<-c(unlist(strsplit(mlidx[1,i],'_')),'FAx',j,mlidx[1,i],mlidx[2,i],summary(fitml)$r.squared,fitresyx)
+    lmr_reger_intmulti<-rbind(lmr_reger_intmulti,resoneyx) 
+  }
+}
+
+colnames(lmr_reger_intmulti)<-c('trait','faidx','visit','WoFA','Y','X1','X2','R2'
+                                ,'Est_intercept','se_intercept','tvalue_intercept','pvalue_intercept'
+                                ,'Est_X1','se_X1','tvalue_X1','pvalue_X1'
+                                ,'Est_X2','se_X2','tvalue_X2','pvalue_X2')
+rownames(lmr_reger_intmulti)<-NULL
+
+lmr_reger_intmulti<-as.data.frame(lmr_reger_intmulti)
+
+lmr_reger_intmulti[,8:ncol(lmr_reger_intmulti)]<-sapply(lmr_reger_intmulti[,8:ncol(lmr_reger_intmulti)],as.numeric)
+
+lmr_reger_intmulti$sig_X1<-NA
+lmr_reger_intmulti[lmr_reger_intmulti$pvalue_X1<0.05,'sig_X1']<-TRUE
+
+lmr_reger_intmulti$sig_X2<-NA
+lmr_reger_intmulti[lmr_reger_intmulti$pvalue_X2<0.05,'sig_X2']<-TRUE
+
+lmr_reger_intmulti$sig20_X1<-NA
+lmr_reger_intmulti[lmr_reger_intmulti$pvalue_X1<0.05/20,'sig20_X1']<-TRUE
+
+lmr_reger_intmulti$sig20_X2<-NA
+lmr_reger_intmulti[lmr_reger_intmulti$pvalue_X2<0.05/20,'sig20_X2']<-TRUE
+
+lmr_reger_intmulti[!is.na(lmr_reger_intmulti$sig_X1)|!is.na(lmr_reger_intmulti$sig_X2),]
+
+lmr_reger_intmulti<-lmr_reger_intmulti[order(lmr_reger_intmulti$visit,lmr_reger_intmulti$Y,lmr_reger_intmulti$X1,lmr_reger_intmulti$Est_X1),]
+lm_rel_fax_abs_avg<-lmr_reger_intmulti[lmr_reger_intmulti$faidx=='lmrabs',]
+lm_rel_fax_sq_avg<-lmr_reger_intmulti[lmr_reger_intmulti$faidx=='lmrsq',]
+
+lm_rel_fax_abs_avg[,c('Y','X1','R2','Est_X1','se_X1','tvalue_X1','pvalue_X1'
+                                ,'Est_X2','se_X2','tvalue_X2','pvalue_X2'
+                                ,'sig_X1','sig_X2','sig20_X1','sig20_X2')]
+
+lm_rel_fax_sq_avg[,c('Y','X1','R2','Est_X1','se_X1','tvalue_X1','pvalue_X1'
+                                ,'Est_X2','se_X2','tvalue_X2','pvalue_X2'
+                                ,'sig_X1','sig_X2','sig20_X1','sig20_X2')]
+```
+
+
+## Unrelated individuals only
+```{r}
+famu<-read.table('ukbb/data/phen/ukbEURu_imp_chr9_v3_HM3.fam')
+#dim(famu)
+datsel_EURu<-datsel
+datsel_EURu[!is.element(datsel_EURu$FID,famu[,1]),2:ncol(datsel_EURu)]<-NA
+datsel_EURu$sex<-datsel$sex
+```
+
+### Number of observations of each side/visit 
+```{r}
+nrobs_euru<-apply(datsel_EURu,2,function(x){sum(!is.na(x))})
+nrobs_euru<-matrix(nrobs_euru[2:25],ncol=4,byrow=TRUE)
+rownames(nrobs_euru)<-c('logmar','srt','bmd','hgs','fatpct','FATPCT2')
+colnames(nrobs_euru)<-c('r1','r2','l1','l2')
+nrobs_euru<-nrobs_euru[,c(1,3,2,4)]  
+nrobs_euru
+```
+
+### Phenotypic correlation before adjusting covariates based on unrelated individuals
+
+```{r}
+eurupheno_cor<-NULL
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  #cat(trait,' ')
+  wo<-grep(trait,colnames(datsel_EURu)[1:25])
+  corone<-cor(datsel_EURu[,wo],use='pairwise.complete.obs',method='pearson')
+  corone<-c(trait,corone[lower.tri(corone, diag = FALSE)])
+  eurupheno_cor<-rbind(eurupheno_cor,corone)
+}
+colnames(eurupheno_cor)<-c('tarit','r1_r2','r1_l1','r1_l2','r2_l1','r2_l2','l1_l2')
+rownames(eurupheno_cor)<-NULL
+eurupheno_cor<-as.data.frame(eurupheno_cor)
+eurupheno_cor[,2:ncol(eurupheno_cor)]<-sapply(eurupheno_cor[,2:ncol(eurupheno_cor)],function(x){round(as.numeric(x),3)})
+eurupheno_cor
+```
+
+
+### Histogram of raw phenotype based on unrelated individuals
+
+
+```{r,eval = T, fig.width = 12, warning=FALSE,fig.height = 4}
+#```{r,eval = T, fig.width = 12, warning=FALSE,fig.height = 5}
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  cat(trait,' ')
+
+    idx='r1'
+    
+    p_r1<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste(trait,'r1',sep='_')],fill=as.factor(hand1)))+
+      #geom_histogram(binwidth = 1/50)+
+      geom_histogram(bins = 30)+
+      scale_fill_manual(values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x=paste(trait,idx,sep='_'),y='')+
+      theme(
+        legend.position='none'
+        ,axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+    idx='l1'
+    p_l1<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste(trait,'l1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual(values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x=paste(trait,idx,sep='_'),y='')+
+      theme(
+        legend.position='none'
+        ,axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )    
+ 
+    idx='r2'
+    p_r2<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste(trait,'r2',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual(values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x=paste(trait,idx,sep='_'),y='')+
+      theme(
+        legend.position='none'
+        ,axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+    idx='l2'
+    p_l2<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste(trait,'l2',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x=paste(trait,idx,sep='_'),y='')+
+      theme(
+        #legend.title = element_text()
+        axis.text=element_text(size=rel(1))
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )  
+    
+    print(p_r1+p_l1+p_r2+p_l2+ plot_layout(ncol=4),widths=c(0.8,0.8,0.8,1.6))
+
+}
+
+```
+
+### L-R,|L-R|,(L-R)^2
+```{r}
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  for(v in c(1,2)){
+      cat(trait,v,' ')
+      sl<-paste(trait,'_l',v,sep='')
+      sr<-paste(trait,'_r',v,sep='')
+      dattemp<-datsel_EURu[,sl]-datsel_EURu[,sr]
+      datsel_EURu[,paste(trait,'_lmr_',v,sep='')]<-dattemp
+      datsel_EURu[,paste(trait,'_lmrsq_',v,sep='')]<-dattemp^2
+      datsel_EURu[,paste(trait,'_lmrabs_',v,sep='')]<-abs(dattemp)
+     datsel_EURu[,paste(trait,'_lpravg_',v,sep='')]<-(datsel_EURu[,sl]+datsel_EURu[,sr])/2
+  }
+}
+
+```
+
+
+### Histogram of FA using raw phenotype based on unrelated individuals
+
+```{r,eval = F, fig.width = 10, warning=FALSE,fig.height = 5}
+
+for (fa in c('lmr','lmrsq','lmrabs','lpravg')){
+   cat(fa,' ')
+    idx='logmar'
+    pt1<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste('logmar',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('logmar',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+
+    
+    idx='srt'
+    pt2<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste('srt',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('srt',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+
+    idx='bmd'
+    pt3<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste('bmd',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('bmd',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+    
+    idx='hgs'
+    pt4<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste('hgs',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('hgs',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+    
+    idx='fatpct'
+    pt5<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste('fatpct',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('fatpct',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+    
+    idx='FATPCT2'
+    pt6<-ggplot(datsel_EURu,aes(x=datsel_EURu[,paste('FATPCT2',fa,'1',sep='_')]))+
+      geom_histogram(bins = 30, color='darkblue',fill='lightblue')+
+      labs(x=paste('fatpct',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+    print(pt1+pt2+pt3+pt4+pt5+pt6+ plot_layout(ncol=3))
+
+}
+
+```
+### Histogram of FA using raw phenotype based on unrelated individuals, colored by handednss
+
+```{r,eval = T, fig.width = 12, warning=FALSE,fig.height = 6}
+
+dattemp<-datsel_EURu[!is.na(datsel_EURu$hand1),]
+for (fa in c('lmr','lmrsq','lmrabs','lpravg')){
+   cat(fa,' ')
+    idx='logmar'
+    pt1<-ggplot(dattemp,aes(x=dattemp[,paste('logmar',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+
+      labs(x=paste('logmar',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+
+    idx='srt'
+    pt2<-ggplot(dattemp,aes(x=dattemp[,paste('srt',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('srt',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+
+    idx='bmd'
+    pt3<-ggplot(dattemp,aes(x=dattemp[,paste('bmd',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('bmd',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        #,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+    
+    idx='hgs'
+    pt4<-ggplot(dattemp,aes(x=dattemp[,paste('hgs',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('hgs',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+    
+    idx='fatpct'
+    pt5<-ggplot(dattemp,aes(x=dattemp[,paste('fatpct',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('fatpct',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+        ,legend.position='none'
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+ 
+    idx='FATPCT2'
+    pt6<-ggplot(dattemp,aes(x=dattemp[,paste('FATPCT2',fa,'1',sep='_')],fill=as.factor(hand1)))+
+      geom_histogram(bins = 30)+
+      scale_fill_manual('Handedness',values=c("#69b3a2", "#404080",'red'))+
+      labs(x=paste('fatpct',fa,'V1',sep=', '),y='')+
+      theme(
+        axis.text=element_text(size=rel(1))
+       
+        ,axis.title=element_text(size=rel(1))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(1))
+        )
+    
+    print(pt1+pt2+pt3+pt4+pt5+pt6+
+              plot_layout(ncol=3)
+          )
+
+}
+```
+
+### Within each sex, and visit, exclude outliers(4sd), then adjust phenotype with agt at visting, accessment center, handedness,PC10, INT
+```{r}
+
+female<-datsel_EURu[datsel_EURu$sex==0,]
+male<-datsel_EURu[datsel_EURu$sex==1,]
+
+npc<-10
+
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  for(vt in c('l1','r1','l2','r2')){
+    wasvt<-substr(vt,2,2)
+    wo<-paste(trait,vt,sep='_')
+### female
+
+	wona<-c(which(female[,wo]>(mean(female[,wo],na.rm=TRUE)
+		+4*sd(female[,wo],na.rm=TRUE))), which(female[,wo]< (mean(female[,wo],na.rm=TRUE)
+		-4*sd(female[,wo],na.rm=TRUE))))
+	
+  if(length(wona)>0){female[wona,wo]<-NA}	
+	### adjust aga at 
+  fit<-as.formula(paste(wo,'~ageatv',wasvt,'+factor(assesscenter)+hand1+',paste('PC',1:npc,sep='',collapse='+'),sep=''))
+
+	lmr<-lm(fit,data=female)
+	female[-lmr$na.action,wo]<-qnorm((rank(lmr$residuals)-0.5)/length(lmr$residuals))
+	female[+lmr$na.action,wo]<-NA
+	rm(wona)
+### male
+	wona<-c(which(male[,wo]>mean(male[,wo],na.rm=TRUE)
+		+4*sd(male[,wo],na.rm=TRUE)), which(male[,wo]< mean(male[,wo],na.rm=TRUE)
+		-4*sd(male[,wo],na.rm=TRUE)))
+	if(length(wona)>0){male[wona,wo]<-NA}
+
+	lmrmale<-lm(fit,data=male)
+	male[-lmrmale$na.action,wo]<-qnorm((rank(lmrmale$residuals)-0.5)/length(lmrmale$residuals))
+	male[+lmrmale$na.action,wo]<-NA
+	
+  }
+  
+}
+datsel_EURuqced<-rbind(female,male)
+dim(datsel_EURuqced)
+
+dim(datsel_EURu)
+```
+### QCed,L-R,|L-R|,(L-R)^2
+```{r}
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  for(v in c(1,2)){
+      cat(trait,v,' ')
+      sl<-paste(trait,'_l',v,sep='')
+      sr<-paste(trait,'_r',v,sep='')
+      dattemp<-datsel_EURuqced[,sl]-datsel_EURuqced[,sr]
+      datsel_EURuqced[,paste(trait,'_lmr_',v,sep='')]<-dattemp
+      datsel_EURuqced[,paste(trait,'_lmrsq_',v,sep='')]<-dattemp^2
+      datsel_EURuqced[,paste(trait,'_lmrabs_',v,sep='')]<-abs(dattemp)
+      datsel_EURuqced[,paste(trait,'_lpravg_',v,sep='')]<-(datsel_EURuqced[,sl]+datsel_EURuqced[,sr])/2
+    
+  }
+}
+```
+### QCed:checking the normality of L-R via QQ-plot
+```{r,eval = T, fig.width = 10, warning=FALSE,fig.height = 6}
+
+
+p1=ggplot(datsel_EURuqced,aes(sample=datsel_EURuqced$logmar_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title= 'logMAR L-R')
+  
+p2=ggplot(datsel_EURuqced,aes(sample=datsel_EURuqced$srt_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='SRT L-R')
+p3=ggplot(datsel_EURuqced,aes(sample=datsel_EURuqced$bmd_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title = 'BMD L-R')
+p4=ggplot(datsel_EURuqced,aes(sample=datsel_EURuqced$hgs_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title = 'hgs L-R')
+p5=ggplot(datsel_EURuqced,aes(sample=datsel_EURuqced$fatpct_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='Fat percentage L-R')
+p6=ggplot(datsel_EURuqced,aes(sample=datsel_EURuqced$FATPCT2_lmr_1))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='Fat percentage L-R')
+
+
+p1+p2+p3+p4+p5+p6+ plot_layout(ncol=3)
+
+```
+```{r eval =T}
+hist(datsel_EURuqced$bmd_lmrabs_1)
+dattemp<-scale(datsel_EURuqced$bmd_lmrabs_1)
+hist(dattemp)
+
+```
+
+```{r}
+discobs_euruqc<-NULL
+for(v in c(1,2)){
+  for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  was<-paste(trait,'_lmr_',v,sep='')
+  tempone<-c(was,round(mean(datsel_EURuqced[,was],na.rm=TRUE),4),round(median(datsel_EURuqced[,was],na.rm=TRUE),4),sum(datsel_EURuqced[,was]>0,na.rm=TRUE),sum(datsel_EURuqced[,was]<0,na.rm=TRUE))
+  discobs_euruqc<-rbind(discobs_euruqc,tempone)
+  }
+}
+discobs_euruqc<-as.data.frame(discobs_euruqc)
+rownames(discobs_euruqc)<-NULL
+colnames(discobs_euruqc)<-c('trait','mean','median','L>R','L<R')
+discobs_euruqc
+#<0 means left < right; right is larger
+#>0 means left > right; left is larger
+```
+
+
+### Number of observation after QC
+```{r}
+#datsel_EURuqced<-datsel_EURuqced[,substr(colnames(datsel_EURuqced),1,2)!='PC']
+#datsel_EURuqced<-datsel_EURuqced[,!is.element(colnames(datsel_EURuqced),c('hand2','hand3','assesscenter','ageatv1','ageatv2','ageatv3'))]
+
+nrobs_euruqced<-apply(datsel_EURuqced,2,function(x)sum(!is.na(x)))
+
+nrobs_euruqced<-matrix(nrobs_euruqced[c(2:21)],ncol=4,byrow=TRUE)
+rownames(nrobs_euruqced)<-c('logmar','srt','bmd','hgs','fatpct')
+colnames(nrobs_euruqced)<-c('r1','r2','l1','l2')
+nrobs_euruqced<-nrobs_euruqced[,c(1,3,2,4)]  
+nrobs_euruqced
+```
+### Phenotypic correlation before adjusting covariates based on unrelated individuals
+
+```{r}
+euruphenointed_cor<-NULL
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  #cat(trait,' ')
+  wo<-grep(trait,colnames(datsel_EURuqced)[1:25])
+  corone<-cor(datsel_EURuqced[,wo],use='pairwise.complete.obs',method='pearson')
+  corone<-c(trait,corone[lower.tri(corone, diag = FALSE)])
+  euruphenointed_cor<-rbind(euruphenointed_cor,corone)
+}
+colnames(euruphenointed_cor)<-c('tarit','r1_r2','r1_l1','r1_l2','r2_l1','r2_l2','l1_l2')
+rownames(euruphenointed_cor)<-NULL
+euruphenointed_cor<-as.data.frame(euruphenointed_cor)
+euruphenointed_cor[,2:ncol(euruphenointed_cor)]<-sapply(euruphenointed_cor[,2:ncol(euruphenointed_cor)],function(x){round(as.numeric(x),3)})
+euruphenointed_cor
+```
+
+```{r}
+
+dattemp1<-merge(datsel_EURuqced,fcoef,by.x='FID',by.y='IID',all.x=TRUE)
+dattemp1<-merge(dattemp1,rlrs,by='FID',all.x=TRUE)
+ukbeuru_fa_final<-merge(dattemp1,disease,by='FID',all.x=TRUE)
+fittemp<-as.formula(paste('diseaseSUM_OF_CASES~sex.x+yob+',paste('PC',1:npc,sep='',collapse='+'),sep=''))
+tempadj<-lm(fittemp,data=ukbeuru_fa_final)
+ukbeuru_fa_final[,'disease']<-NA
+ukbeuru_fa_final[-tempadj$na.action,'disease']<-tempadj$residuals
+
+```
+
+### cor(|L-R|,avg(L+R))
+```{r}
+cor_lmrabs_lpravg_euruqced<-NULL
+for (vt in c(1,2)){
+  for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  
+    tone<-paste(trait,'_lmrabs','_',vt,sep='')
+    ttwo<-paste(trait,'_lpravg','_',vt,sep='')
+    corone<-c(trait,vt,cor(datsel_EURuqced[,tone],datsel_EURuqced[,ttwo],use='pairwise.complete.obs'))
+    cor_lmrabs_lpravg_euruqced<-rbind(cor_lmrabs_lpravg_euruqced,corone)
+  }
+}
+colnames(cor_lmrabs_lpravg_euruqced)<-c('trait','visit','cor')
+rownames(cor_lmrabs_lpravg_euruqced)<-NULL
+cor_lmrabs_lpravg_euruqced<-as.data.frame(cor_lmrabs_lpravg_euruqced)
+cor_lmrabs_lpravg_euruqced[,2:3]<-sapply(cor_lmrabs_lpravg_euruqced[,2:3],as.numeric)
+cor_lmrabs_lpravg_euruqced
+
+```
+### correlation across signed FA
+```{r}
+
+dattemp<-datsel_EURuqced[,grep('lmr_1',colnames(datsel_EURuqced))]
+facor_lmr<-round(cor(dattemp,use='pairwise.complete.obs'),4)
+
+#dattemp<-datsel_EURuqced[,grep('lmrabs_1',colnames(datsel_EURuqced))]
+#facor_lmrabs<-round(cor(dattemp,use='pairwise.complete.obs'),4)
+
+#facor_lmrabs_sq<-matrix(1,ncol=nrow(facor_lmrsq),nrow=nrow(facor_lmrsq))
+
+#facor_lmrabs_sq[upper.tri(facor_lmrabs_sq,diag=FALSE)]<-facor_lmrabs[upper.tri(facor_lmrabs,diag=FALSE)]
+#facor_lmrabs_sq[lower.tri(facor_lmrabs_sq,diag=FALSE)]<-facor_lmrsq[lower.tri(facor_lmrsq,diag=FALSE)]
+#colnames(facor_lmrabs_sq)<-colnames(facor_lmrabs)
+#rownames(facor_lmrabs_sq)<-colnames(facor_lmrsq)
+facor_lmr
+#write.table(facor_lmr,file='fluctuating_asymmetry/table/correlation_lmr.txt',col.names=TRUE,row.names=TRUE,append=F,quote=F,sep='\t')
+
+```
+### correlation across unsigned FA
+```{r}
+
+dattemp<-datsel_EURuqced[,grep('lmrabs_1',colnames(datsel_EURuqced))]
+facor_lmrabs<-round(cor(dattemp,use='pairwise.complete.obs'),4)
+
+#dattemp<-datsel_EURuqced[,grep('lmrabs_1',colnames(datsel_EURuqced))]
+#facor_lmrabs<-round(cor(dattemp,use='pairwise.complete.obs'),4)
+
+#facor_lmrabs_sq<-matrix(1,ncol=nrow(facor_lmrsq),nrow=nrow(facor_lmrsq))
+
+#facor_lmrabs_sq[upper.tri(facor_lmrabs_sq,diag=FALSE)]<-facor_lmrabs[upper.tri(facor_lmrabs,diag=FALSE)]
+#facor_lmrabs_sq[lower.tri(facor_lmrabs_sq,diag=FALSE)]<-facor_lmrsq[lower.tri(facor_lmrsq,diag=FALSE)]
+#colnames(facor_lmrabs_sq)<-colnames(facor_lmrabs)
+#rownames(facor_lmrabs_sq)<-colnames(facor_lmrsq)
+facor_lmrabs
+#write.table(facor_lmrabs,file='fluctuating_asymmetry/table/correlation_lmrabs.txt',col.names=TRUE,row.names=TRUE,append=F,quote=F,sep='\t')
+
+```
+
+### plot lmrabs vs lqravg
+```{r,eval = T, fig.width = 10, warning=FALSE,fig.height = 6}
+
+p1<-ggplot(datsel_EURuqced,aes(y=logmar_lmrabs_1,x=logmar_lpravg_1))+
+       geom_point(size=2,shape=23)+labs(y='|L-R|',x='(L+Y)/2',title='LogMAR')
+
+p2<-ggplot(datsel_EURuqced,aes(y=srt_lmrabs_1,x=srt_lpravg_1))+
+       geom_point(size=2,shape=23)+labs(y='|L-R|',x='(L+Y)/2',title='SRT')
+
+p3<-ggplot(datsel_EURuqced,aes(y=bmd_lmrabs_1,x=bmd_lpravg_1))+
+       geom_point(size=2,shape=23)+labs(y='|L-R|',x='(L+Y)/2',title='BMD')
+
+p4<-ggplot(datsel_EURuqced,aes(y=hgs_lmrabs_1,x=hgs_lpravg_1))+
+       geom_point(size=2,shape=23)+labs(y='|L-R|',x='(L+Y)/2',title='hgs')
+
+p5<-ggplot(datsel_EURuqced,aes(y=fatpct_lmrabs_1,x=fatpct_lpravg_1))+
+       geom_point(size=2,shape=23)+labs(y='|L-R|',x='(L+Y)/2',title='Fat Percentage')
+
+p6<-ggplot(datsel_EURuqced,aes(y=FATPCT2_lmrabs_1,x=FATPCT2_lpravg_1))+
+       geom_point(size=2,shape=23)+labs(y='|L-R|',x='(L+Y)/2',title='Fat Percentage')
+
+p1+p2+p3+p4+p5+p6+ plot_layout(ncol=3,nrow=2)
+
+```
+
+### Linear regression 
+```{r}
+
+faidx
+phenidx
+
+lmr_reger_intxy=NULL
+lmr_reger_intyx=NULL
+
+for(i in faidx){
+  for (j in phenidx){
+    #cat(i,j,'\n')
+    
+    fit<-lm(ukbeuru_fa_final[,i]~ukbeuru_fa_final[,j])
+    fitres<-summary(fit)$coefficients[2,]
+    resone<-c(unlist(strsplit(i,'_')),'FAy',i,j
+                ,var(ukbeuru_fa_final[,i],na.rm=TRUE),var(ukbeuru_fa_final[,j],na.rm=TRUE)
+              ,summary(fit)$r.squared,fitres)
+    lmr_reger_intxy<-rbind(lmr_reger_intxy,resone)
+    
+    #cat(2,'\n')
+    fityx<-lm(ukbeuru_fa_final[,j]~ukbeuru_fa_final[,i])
+    fitresyx<-summary(fityx)$coefficients[2,]
+    resoneyx<-c(unlist(strsplit(i,'_')),'FAx',j,i
+                ,var(ukbeuru_fa_final[,j],na.rm=TRUE),var(ukbeuru_fa_final[,i],na.rm=TRUE)
+                ,summary(fityx)$r.squared,fitresyx)
+    lmr_reger_intyx<-rbind(lmr_reger_intyx,resoneyx)
+  }
+}
+
+lmreuru_reger_int<-rbind(lmr_reger_intxy,lmr_reger_intyx)
+colnames(lmreuru_reger_int)<-c('trait','faidx','visit','WoFA','Y','X','VarY','VarX','R2','Est','se','tvalue','pvalue')
+rownames(lmreuru_reger_int)<-NULL
+lmreuru_reger_int<-as.data.frame(lmreuru_reger_int)
+lmreuru_reger_int[,c('VarY','VarX','R2','Est','se','tvalue','pvalue')]<-sapply(lmreuru_reger_int[,c('VarY','VarX','R2','Est','se','tvalue','pvalue')],as.numeric)
+
+lmreuru_reger_int$sig<-NA
+lmreuru_reger_int[lmreuru_reger_int$pvalue<0.05,'sig']<-TRUE
+
+lmreuru_reger_int$sig20<-NA
+lmreuru_reger_int[lmreuru_reger_int$pvalue<0.05/20,'sig20']<-TRUE
+
+lmreuru_reger_int$sign<-NA
+lmreuru_reger_int$sign<-sign(lmreuru_reger_int$Est)
+#lmreuru_reger_int[,c('Est','se','tvalue')]<-sapply(lmreuru_reger_int[,c('Est','se','tvalue')],function(x){round(x,5)})
+lmreuru_reger_int$pvalue<-as.numeric(format(lmreuru_reger_int$pvalue, digits=3))
+
+
+#write.table(lmreuru_reger_int,file='fluctuating_asymmetry/table/fa_int_regerssion_unrelated_200929.txt'
+#            ,col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+
+lm_fax<-lmreuru_reger_int[!is.na(lmreuru_reger_int$sig)&lmreuru_reger_int$WoFA=='FAx',]
+lm_fax<-lm_fax[order(lm_fax$visit,lm_fax$Y,lm_fax$X,lm_fax$Est),]
+lm_fax_abs<-lm_fax[lm_fax$faidx=='lmrabs',]
+lm_fax_sq<-lm_fax[lm_fax$faidx=='lmrsq',]
+lm_fax_lpravg<-lm_fax[lm_fax$faidx=='lpravg',]
+
+lm_fax_sq[,c('Y','X','VarY','VarX','R2','Est','se','pvalue','sig20')]
+lm_fax_abs[,c('Y','X','VarY','VarX','R2','Est','se','pvalue','sig20')]
+lm_fax_lpravg[,c('Y','X','VarY','VarX','R2','Est','se','pvalue','sig20')]
+#write.table(rbind(lm_fax_abs,lm_fax_sq,lm_fax_lpravg),
+#              file='fluctuating_asymmetry/table/fa_int_faxregerssion_unrelated_201001.txt',
+#              col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+
+```
+
+### plot of simple linear regression of beta+/se and p-value |L-R|
+
+```{r, eval=T, fig.width = 8, warning=FALSE,fig.height = 6}
+### lm_fax_abs
+dattemp<-lmreuru_reger_int[lmreuru_reger_int$faidx=='lmrabs'&lmreuru_reger_int$WoFA=='FAx'
+                            &!is.element(lmreuru_reger_int$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm'))
+                          &lmreuru_reger_int$visit==1
+                          &lmreuru_reger_int$trait!='fatpct',]
+dattemp$Y<-factor(dattemp$Y,levels(as.factor(dattemp$Y))[c(1,4,2,3)]
+                    ,labels=c('Disease count','rLRS','Froh1.5','Funi'))
+
+dattemp$trait<-factor(dattemp$trait,levels(as.factor(dattemp$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+
+dattempxy<-lmreuru_reger_int[lmreuru_reger_int$faidx=='lmrabs'&lmreuru_reger_int$WoFA=='FAy'
+                            &is.element(lmreuru_reger_int$X,c('Funi_001'))
+                          &lmreuru_reger_int$visit==1
+                          &lmreuru_reger_int$trait!='fatpct',]
+
+dattempxy$trait<-factor(dattempxy$trait,levels(as.factor(dattempxy$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+dattempxy[dattempxy$X=='Funi_001','X']<-'Funi'
+#dattemp<-lm_fax_abs[!is.element(lm_fax_abs$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm')) & lm_fax_abs$visit==1 & lm_fax_abs$trait!='fatpct',]
+#cbbPalette<-c('#FEAE51FF',rep('#FAA094FF',3),rep('#9ED9CCFF',2),rep('#008C76FF',2))
+#cbbPalette<-c('#FEAE51FF','#FAA094FF','#66CDAA','#9ED9CCFF','#008C76FF','#6E8B3D')
+cbbPalette<-c('#FEAE51FF','#FAA094FF','#66CDAA','#90EE90','#008C76FF')
+dattemp1<-dattemp[is.element(dattemp$Y,c('Disease count','rLRS')),]
+dattemp2<-dattemp[!is.element(dattemp$Y,c('Disease count','rLRS')),]
+
+p1<-ggplot(dattemp1,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  coord_cartesian(ylim=c(-0.2,0.3))+
+  labs(x=' FA ',y='Linear regression gradients +/- SE') +
+  scale_fill_manual(values=cbbPalette) +
+  facet_grid(.~Y) +
+ 
+ theme(
+    legend.position='none'
+  ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  ,axis.title.y=element_text(size=14)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+
+p2<-ggplot(dattemp2,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  #coord_cartesian(ylim=c(-0.05,0.05))+
+  scale_fill_manual(values=cbbPalette) +
+  labs(x='FA',y='') +
+  facet_grid(.~Y) +
+ theme(
+    legend.position='none'
+    ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+
+p_lm_abs<-grid.arrange(p1,p2,nrow=1)
+plot(p_lm_abs)
+
+#ggsave(p_lm_abs, width = 10, height = 6, filename = "fluctuating_asymmetry/plot/Simple_lm_beta_se_vist1_faabs.pdf")
+
+p3<-ggplot(dattempxy,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  coord_cartesian(ylim=c(-0.5,0.75))+
+  scale_fill_manual(values=cbbPalette) +
+  labs(x='FA',y='') +
+  facet_grid(.~X) +
+ theme(
+    legend.position='none'
+    ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+p_lm_abs_2<-grid.arrange(p1,p3,layout_matrix=matrix(c(1,1,2),nrow=1))
+plot(p_lm_abs_2)
+ggsave(p_lm_abs_2, width = 10, height = 6, filename = "fluctuating_asymmetry/plot/Simple_lm_beta_se_vist1_faabs_faxy_ylim.pdf")
+dattemp1
+dattempxy
+simplelm_lmrabs_out<-rbind(dattemp1,dattempxy)
+#write.table(simplelm_lmrabs_out,  
+#            file='fluctuating_asymmetry/table/simplelm_lmrabs_out_210318.txt',
+#              col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+```
+
+### linear regression with wearing sses
+```{r}
+faidx<-NULL
+for(v in c(1,2)){
+  for (fa in c('lmrabs','lmrsq','lpravg')){
+    for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+      #if(fa=='')
+      was<-paste(trait,'_',fa,'_',v,sep='')
+      faidx<-c(faidx,was)
+    }
+  }
+}
+#mlidx<-rbind(faidx[1:12],rep(faidx[13:18],2))
+
+phenidx<-c('Froh_1.5','Funi_001','rLRS','rLRSm','rLRSf','disease','diseaseSUM_OF_CASES')
+
+#cat Eye_pheno.tab | awk -f test.awk -v c='f.eid f.6075.0.0 f.6074.0.0' > glasseswear
+#gl<-read.table('fluctuating_asymmetry/table/glasseswear',header=T)
+#colnames(gl)<-c('f.eid','gl_r','gl_l')
+
+gl_all<-read.table('fluctuating_asymmetry/table/Eye_pheno.tab',header=T)
+gl<-gl_all[,c('f.eid','f.6075.0.0','f.6074.0.0')]
+colnames(gl)<-c('f.eid','gl_r','gl_l')
+gl$gl_b<-0
+gl[gl[,'gl_r']==1&gl[,'gl_l']==1&!is.na(gl[,'gl_l'])&!is.na(gl[,'gl_r']),'gl_b']<-1
+gl[is.na(gl[,'gl_l']),'gl_b']<-NA
+gl[is.na(gl[,'gl_r']),'gl_b']<-NA
+
+ukbeuru_fa_final_gl<-merge(ukbeuru_fa_final,gl,by.x='FID',by.y='f.eid',all=F)
+
+lmr_reger_intxy_gl=NULL
+lmr_reger_intyx_gl=NULL
+
+
+for(i in faidx){
+  for (j in phenidx){
+  fit<-lm(ukbeuru_fa_final_gl[,i]~ukbeuru_fa_final_gl[,'gl_b']+ukbeuru_fa_final_gl[,j])
+  fitres<-summary(fit)$coefficients[3,]
+  resone<-c(unlist(strsplit(i,'_')),'FAy',i,j
+                ,var(ukbeuru_fa_final_gl[,i],na.rm=TRUE),var(ukbeuru_fa_final_gl[,j],na.rm=TRUE)
+              ,summary(fit)$r.squared,fitres)
+    lmr_reger_intxy_gl<-rbind(lmr_reger_intxy_gl,resone)
+
+  fityx<-lm(ukbeuru_fa_final_gl[,j]~ukbeuru_fa_final_gl[,'gl_b']+ukbeuru_fa_final_gl[,i])
+  fitresyx<-summary(fityx)$coefficients[3,]
+  resone<-c(unlist(strsplit(i,'_')),'FAx',j,i
+                ,var(ukbeuru_fa_final_gl[,j],na.rm=TRUE),var(ukbeuru_fa_final_gl[,i],na.rm=TRUE)
+              ,summary(fityx)$r.squared,fitresyx)
+    lmr_reger_intyx_gl<-rbind(lmr_reger_intyx_gl,resone)
+    
+  }
+}
+lmr_reger_intxy_gl<-rbind(lmr_reger_intxy_gl,lmr_reger_intyx_gl)
+
+colnames(lmr_reger_intxy_gl)<-c('trait','faidx','visit','WoFA','Y','X','VarY','VarX','R2','Est','se','tvalue','pvalue')
+rownames(lmr_reger_intxy_gl)<-NULL
+lmr_reger_intxy_gl<-as.data.frame(lmr_reger_intxy_gl)
+lmr_reger_intxy_gl[,c('VarY','VarX','R2','Est','se','tvalue','pvalue')]<-sapply(lmr_reger_intxy_gl[,c('VarY','VarX','R2','Est','se','tvalue','pvalue')],as.numeric)
+
+was<-lmr_reger_intxy_gl[lmr_reger_intxy_gl$faidx=='lmrabs'&lmr_reger_intxy_gl$visit==1&is.element(lmr_reger_intxy_gl$Y,c('Funi_001','rLRS','diseaseSUM_OF_CASES','disease')),c('Y','X','R2','pvalue')]
+
+was[order(was$Y),]
+
+
+was2<-lmr_reger_intxy_gl[lmr_reger_intxy_gl$faidx=='lmrabs'&lmr_reger_intxy_gl$visit==1&is.element(lmr_reger_intxy_gl$X,c('Funi_001')),c('Y','X','R2','pvalue')]
+was2[order(was2$Y),]
+res_glass<-rbind(was,was2)
+
+```
+### plot of simple linear regression of beta+/se and p-value |L-R|
+```{r, eval=T, fig.width = 8, warning=FALSE,fig.height = 6}
+### lm_fax_abs
+dattemp<-lmr_reger_intxy_gl[lmr_reger_intxy_gl$faidx=='lmrabs'&lmr_reger_intxy_gl$WoFA=='FAx'
+                            &!is.element(lmr_reger_intxy_gl$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm'))
+                          &lmr_reger_intxy_gl$visit==1
+                          &lmr_reger_intxy_gl$trait!='fatpct',]
+
+dattemp$Y<-factor(dattemp$Y,levels(as.factor(dattemp$Y))[c(1,4,2,3)]
+                    ,labels=c('Disease count','rLRS','Froh1.5','Funi'))
+
+dattemp$trait<-factor(dattemp$trait,levels(as.factor(dattemp$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+
+dattempxy<-lmr_reger_intxy_gl[lmr_reger_intxy_gl$faidx=='lmrabs'&lmr_reger_intxy_gl$WoFA=='FAy'
+                            &is.element(lmr_reger_intxy_gl$X,c('Funi_001'))
+                          &lmr_reger_intxy_gl$visit==1
+                          &lmr_reger_intxy_gl$trait!='fatpct',]
+
+dattempxy$trait<-factor(dattempxy$trait,levels(as.factor(dattempxy$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+dattempxy[dattempxy$X=='Funi_001','X']<-'Funi'
+
+cbbPalette<-c('#FEAE51FF','#FAA094FF','#66CDAA','#90EE90','#008C76FF')
+dattemp1<-dattemp[is.element(dattemp$Y,c('Disease count','rLRS')),]
+dattemp2<-dattemp[!is.element(dattemp$Y,c('Disease count','rLRS')),]
+
+p1<-ggplot(dattemp1,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  coord_cartesian(ylim=c(-0.2,0.3))+
+  #coord_cartesian(ylim=c(-0.05,0.05))+
+  labs(x=' FA ',y='Linear regression gradients +/- SE') +
+  scale_fill_manual(values=cbbPalette) +
+  facet_grid(.~Y) +
+ 
+ theme(
+    legend.position='none'
+  ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  ,axis.title.y=element_text(size=14)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+
+p2<-ggplot(dattemp2,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  #coord_cartesian(ylim=c(-0.05,0.05))+
+  scale_fill_manual(values=cbbPalette) +
+  labs(x='FA',y='') +
+  facet_grid(.~Y) +
+ theme(
+    legend.position='none'
+    ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+
+p_lm_abs<-grid.arrange(p1,p2,nrow=1)
+plot(p_lm_abs)
+
+#ggsave(p_lm_abs, width = 10, height = 6, filename = " fluctuating_asymmetry/plot/Simple_lm_beta_se_vist1_faabs.pdf")
+
+p3<-ggplot(dattempxy,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  coord_cartesian(ylim=c(-0.75,0.75))+
+  #coord_cartesian(ylim=c(-0.05,0.05))+
+  scale_fill_manual(values=cbbPalette) +
+  labs(x='FA',y='') +
+  facet_grid(.~X) +
+ theme(
+    legend.position='none'
+    ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+p_lm_abs_2<-grid.arrange(p1,p3,layout_matrix=matrix(c(1,1,2),nrow=1))
+plot(p_lm_abs_2)
+ggsave(p_lm_abs_2, width = 10, height = 6, filename = "fluctuating_asymmetry/plot/Simple_lm_beta_se_vist1_faabs_faxy_glasses.pdf")
+dattemp1
+dattempxy
+simplelm_lmrabs_out<-rbind(dattemp1,dattempxy)
+#write.table(simplelm_lmrabs_out,
+#            file='fluctuating_asymmetry/table/simplelm_lmrabs_out_glasses_210318.txt',
+#              col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+```
+
+### Linear regression with educational attaimments
+```{r}
+ea<-read.table('fluctuating_asymmetry/table/Educational_attainment_years.tab',header=T)
+tdi<-read.table('fluctuating_asymmetry/table/9280_12505_UKBiobank_birthComplications_190917.tab_tdi',header=T)
+ukbeuru_fa_final_ea<-merge(ukbeuru_fa_final,ea[,c('f.eid','edu_years_max')],by.x='FID',by.y='f.eid',all=F)
+ukbeuru_fa_final_ea_tdi<-merge(ukbeuru_fa_final_ea,tdi,by.x='FID',by.y='f.eid',all=F)
+
+lmr_reger_intxy_edtid=NULL
+lmr_reger_intyx_edtid=NULL
+
+for(i in faidx){
+  for (j in phenidx){
+    #cat(i,j,'\n')
+    
+    fit<-lm(ukbeuru_fa_final_ea_tdi[,i]~ukbeuru_fa_final_ea_tdi[,'edu_years_max']+ukbeuru_fa_final_ea_tdi[,'f.189.0.0']+ukbeuru_fa_final_ea_tdi[,j])
+    fitres<-summary(fit)$coefficients[4,]
+    resone<-c(unlist(strsplit(i,'_')),'FAy',i,j
+                ,var(ukbeuru_fa_final_ea_tdi[,i],na.rm=TRUE),var(ukbeuru_fa_final_ea_tdi[,j],na.rm=TRUE)
+              ,summary(fit)$r.squared,fitres)
+    lmr_reger_intxy_edtid<-rbind(lmr_reger_intxy_edtid,resone)
+    
+    #cat(2,'\n')
+    fityx<-lm(ukbeuru_fa_final_ea_tdi[,j]~ukbeuru_fa_final_ea_tdi[,'edu_years_max']+ukbeuru_fa_final_ea_tdi[,'f.189.0.0']+ukbeuru_fa_final_ea_tdi[,i])
+    fitresyx<-summary(fityx)$coefficients[4,]
+    resoneyx<-c(unlist(strsplit(i,'_')),'FAx',j,i
+                ,var(ukbeuru_fa_final_ea_tdi[,j],na.rm=TRUE),var(ukbeuru_fa_final_ea_tdi[,i],na.rm=TRUE)
+                ,summary(fityx)$r.squared,fitresyx)
+    lmr_reger_intyx_edtid<-rbind(lmr_reger_intyx_edtid,resoneyx)
+  }
+}
+
+lmreuru_reger_int_edtid<-rbind(lmr_reger_intxy_edtid,lmr_reger_intyx_edtid)
+colnames(lmreuru_reger_int_edtid)<-c('trait','faidx','visit','WoFA','Y','X','VarY','VarX','R2','Est','se','tvalue','pvalue')
+rownames(lmreuru_reger_int_edtid)<-NULL
+lmreuru_reger_int_edtid<-as.data.frame(lmreuru_reger_int_edtid)
+lmreuru_reger_int_edtid[,c('VarY','VarX','R2','Est','se','tvalue','pvalue')]<-sapply(lmreuru_reger_int_edtid[,c('VarY','VarX','R2','Est','se','tvalue','pvalue')],as.numeric)
+lmreuru_reger_int_edtid[lmreuru_reger_int_edtid[,'Y']=="disease"&lmreuru_reger_int_edtid[,'X']=='logmar_lmrabs_1',]
+#lmreuru_reger_int_edtid[lmreuru_reger_int_edtid[,'Y']=="disease"&lmreuru_reger_int_edtid[,'X']=='bmd_lmrabs_1',]
+#(-0.02470592	0.00777135	-3.179103	0.001477911)
+
+```
+
+### plot of simple linear regression of beta+/se and p-value |L-R|
+```{r, eval=T, fig.width = 8, warning=FALSE,fig.height = 6}
+### lm_fax_abs
+dattemp<-lmreuru_reger_int_edtid[lmreuru_reger_int_edtid$faidx=='lmrabs'&lmreuru_reger_int_edtid$WoFA=='FAx'
+                            &!is.element(lmreuru_reger_int_edtid$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm'))
+                          &lmreuru_reger_int_edtid$visit==1
+                          &lmreuru_reger_int_edtid$trait!='fatpct',]
+dattemp$Y<-factor(dattemp$Y,levels(as.factor(dattemp$Y))[c(1,4,2,3)]
+                    ,labels=c('Disease count','rLRS','Froh1.5','Funi'))
+
+dattemp$trait<-factor(dattemp$trait,levels(as.factor(dattemp$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+
+dattempxy<-lmreuru_reger_int_edtid[lmreuru_reger_int_edtid$faidx=='lmrabs'&lmreuru_reger_int_edtid$WoFA=='FAy'
+                            &is.element(lmreuru_reger_int_edtid$X,c('Funi_001'))
+                          &lmreuru_reger_int_edtid$visit==1
+                          &lmreuru_reger_int_edtid$trait!='fatpct',]
+
+dattempxy$trait<-factor(dattempxy$trait,levels(as.factor(dattempxy$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+dattempxy[dattempxy$X=='Funi_001','X']<-'Funi'
+#dattemp<-lm_fax_abs[!is.element(lm_fax_abs$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm')) & lm_fax_abs$visit==1 & lm_fax_abs$trait!='fatpct',]
+#cbbPalette<-c('#FEAE51FF',rep('#FAA094FF',3),rep('#9ED9CCFF',2),rep('#008C76FF',2))
+#cbbPalette<-c('#FEAE51FF','#FAA094FF','#66CDAA','#9ED9CCFF','#008C76FF','#6E8B3D')
+cbbPalette<-c('#FEAE51FF','#FAA094FF','#66CDAA','#90EE90','#008C76FF')
+dattemp1<-dattemp[is.element(dattemp$Y,c('Disease count','rLRS')),]
+dattemp2<-dattemp[!is.element(dattemp$Y,c('Disease count','rLRS')),]
+
+p1<-ggplot(dattemp1,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  #coord_cartesian(ylim=c(-0.05,0.05))+
+  labs(x=' FA ',y='Linear regression gradients +/- SE') +
+  scale_fill_manual(values=cbbPalette) +
+  facet_grid(.~Y) +
+ 
+ theme(
+    legend.position='none'
+  ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  ,axis.title.y=element_text(size=14)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+
+p2<-ggplot(dattemp2,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  #coord_cartesian(ylim=c(-0.05,0.05))+
+  scale_fill_manual(values=cbbPalette) +
+  labs(x='FA',y='') +
+  facet_grid(.~Y) +
+ theme(
+    legend.position='none'
+    ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+
+p_lm_abs<-grid.arrange(p1,p2,nrow=1)
+plot(p_lm_abs)
+
+#ggsave(p_lm_abs, width = 10, height = 6, filename = " fluctuating_asymmetry/plot/Simple_lm_beta_se_vist1_faabs.pdf")
+
+p3<-ggplot(dattempxy,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  #coord_cartesian(ylim=c(-0.05,0.05))+
+  scale_fill_manual(values=cbbPalette) +
+  labs(x='FA',y='') +
+  facet_grid(.~X) +
+ theme(
+    legend.position='none'
+    ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+p_lm_abs_2<-grid.arrange(p1,p3,layout_matrix=matrix(c(1,1,2),nrow=1))
+plot(p_lm_abs_2)
+ggsave(p_lm_abs_2, width = 10, height = 6, filename = "fluctuating_asymmetry/plot/Simple_lm_beta_se_vist1_faabs_faxy_edtid.pdf")
+dattemp1
+dattempxy
+simplelm_lmrabs_out<-rbind(dattemp1,dattempxy)
+#write.table(simplelm_lmrabs_out,
+#            file='fluctuating_asymmetry/table/simplelm_lmrabs_out_210318.txt',
+#              col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+```
+### plot of simple linear regression of beta+/se and p-value (L-R)^2
+
+```{r, eval=T, fig.width = 8, warning=FALSE,fig.height = 6}
+### lm_fax_sq 
+dattemp<-lmreuru_reger_int[lmreuru_reger_int$faidx=='lmrsq'&lmreuru_reger_int$WoFA=='FAx'
+                            &!is.element(lmreuru_reger_int$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm'))
+                          &lmreuru_reger_int$visit==1
+                          &lmreuru_reger_int$trait!='fatpct',]
+dattemp$Y<-factor(dattemp$Y,levels(as.factor(dattemp$Y))[c(1,4,2,3)]
+                    ,labels=c('Disease count','rLRS','Froh1.5','Funi'))
+
+dattemp$trait<-factor(dattemp$trait,levels(as.factor(dattemp$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+
+
+dattempxy<-lmreuru_reger_int[lmreuru_reger_int$faidx=='lmrsq'&lmreuru_reger_int$WoFA=='FAy'
+                            &is.element(lmreuru_reger_int$X,c('Funi_001'))
+                          &lmreuru_reger_int$visit==1
+                          &lmreuru_reger_int$trait!='fatpct',]
+
+dattempxy$trait<-factor(dattempxy$trait,levels(as.factor(dattempxy$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+dattempxy[dattempxy$X=='Funi_001','X']<-'Funi'
+
+#dattemp<-lm_fax_abs[!is.element(lm_fax_abs$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm')) & lm_fax_abs$visit==1 & lm_fax_abs$trait!='fatpct',]
+#cbbPalette<-c('#FEAE51FF',rep('#FAA094FF',3),rep('#9ED9CCFF',2),rep('#008C76FF',2))
+#cbbPalette<-c('#FEAE51FF','#FAA094FF','#66CDAA','#9ED9CCFF','#008C76FF','#6E8B3D')
+cbbPalette<-c('#FEAE51FF','#FAA094FF','#66CDAA','#90EE90','#008C76FF')
+dattemp1<-dattemp[is.element(dattemp$Y,c('Disease count','rLRS')),]
+dattemp2<-dattemp[!is.element(dattemp$Y,c('Disease count','rLRS')),]
+
+
+p1<-ggplot(dattemp1,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  #coord_cartesian(ylim=c(-0.2,0.3))+
+  labs(x=' FA ',y='Linear regression gradients +/- SE') +
+  scale_fill_manual(values=cbbPalette) +
+  facet_grid(.~Y) +
+ 
+ theme(
+    legend.position='none'
+  ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  ,axis.title.y=element_text(size=14)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+
+p2<-ggplot(dattemp2,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  #coord_cartesian(ylim=c(-0.05,0.05))+
+  scale_fill_manual(values=cbbPalette) +
+  labs(x='FA',y='') +
+  facet_grid(.~Y) +
+ theme(
+    legend.position='none'
+    ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+
+p_lm_sq<-grid.arrange(p1,p2,nrow=1)
+#p_lm
+
+#ggsave(p_lm_sq, width = 10, height = 6, filename = "fluctuating_asymmetry/plot/Simple_lm_beta_se_vist1_fasq.pdf")
+
+p3<-ggplot(dattempxy,aes(y=Est, x=trait, fill=factor(trait))) +
+  geom_bar(position = "dodge",stat="identity") + 
+    geom_errorbar(aes(ymin=Est-se, ymax=Est+se), width=.2,color='bisque4',
+                 position=position_dodge(.9)) +
+  #coord_cartesian(ylim=c(-0.75,0.75))+
+  scale_fill_manual(values=cbbPalette) +
+  labs(x='FA',y='') +
+  facet_grid(.~X) +
+ theme(
+    legend.position='none'
+    ,axis.text.x = element_text(angle = 30)
+  #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+p_lm_abs_3<-grid.arrange(p1,p3,layout_matrix=matrix(c(1,1,2),nrow=1))
+plot(p_lm_abs_3)
+ggsave(p_lm_abs_3, width = 10, height = 6, filename = "fluctuating_asymmetry/plot/Simple_lm_beta_se_vist1_fasq_faxy.pdf")
+dattemp1
+dattempxy
+a0=0f.1
+simplelm_lmrsq_out<-rbind(dattemp1,dattempxy)
+#write.table(simplelm_lmrsq_out,
+#            file='fluctuating_asymmetry/table/simplelm_lmrsq_out_210318.txt',
+#              col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+
+```
+
+### multiple linear regression
+```{r}
+mlidx
+
+#X1 is fa, X2 is lpravg
+
+lmreuru_reger_multi<-NULL
+for (i in c(1:ncol(mlidx))){
+  for ( j in phenidx){
+    #cat(i,j)
+    
+    fitml<-lm(ukbeuru_fa_final[,j]~ukbeuru_fa_final[,mlidx[1,i]]+ukbeuru_fa_final[,mlidx[2,i]])
+    fitmlsmy<-summary(fitml)
+    fitresyx<-c(fitmlsmy$coefficients[1,],fitmlsmy$coefficients[2,],fitmlsmy$coefficients[3,])
+    resoneyx<-c(unlist(strsplit(mlidx[1,i],'_')),'FAx',j,mlidx[1,i],mlidx[2,i],summary(fitml)$r.squared,fitresyx)
+    lmreuru_reger_multi<-rbind(lmreuru_reger_multi,resoneyx) 
+  }
+}
+
+colnames(lmreuru_reger_multi)<-c('trait','faidx','visit','WoFA','Y','X1','X2','R2'
+                                ,'Est_intercept','se_intercept','tvalue_intercept','pvalue_intercept'
+                                ,'Est_X1','se_X1','tvalue_X1','pvalue_X1'
+                                ,'Est_X2','se_X2','tvalue_X2','pvalue_X2')
+rownames(lmreuru_reger_multi)<-NULL
+
+lmreuru_reger_multi<-as.data.frame(lmreuru_reger_multi)
+
+lmreuru_reger_multi[,8:ncol(lmreuru_reger_multi)]<-sapply(lmreuru_reger_multi[,8:ncol(lmreuru_reger_multi)],as.numeric)
+
+lmreuru_reger_multi$sig_X1<-NA
+lmreuru_reger_multi[lmreuru_reger_multi$pvalue_X1<0.05,'sig_X1']<-TRUE
+
+lmreuru_reger_multi$sig_X2<-NA
+lmreuru_reger_multi[lmreuru_reger_multi$pvalue_X2<0.05,'sig_X2']<-TRUE
+
+lmreuru_reger_multi$sig20_X1<-NA
+lmreuru_reger_multi[lmreuru_reger_multi$pvalue_X1<0.05/20,'sig20_X1']<-TRUE
+
+lmreuru_reger_multi$sig20_X2<-NA
+lmreuru_reger_multi[lmreuru_reger_multi$pvalue_X2<0.05/20,'sig20_X2']<-TRUE
+
+#write.table(lmreuru_reger_multi,file='fluctuating_asymmetry/table/fa_int_regerssion_unrelated_multivariate_200929.txt'
+#            ,col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+
+lmreuru_reger_multisel<-lmreuru_reger_multi[!is.na(lmreuru_reger_multi$sig_X1)|!is.na(lmreuru_reger_multi$sig_X2),]
+
+lmreuru_reger_multisel<-lmreuru_reger_multisel[order(lmreuru_reger_multisel$visit,lmreuru_reger_multisel$Y
+                                                    ,lmreuru_reger_multisel$X1,lmreuru_reger_multisel$Est_X1),]
+lm_urel_fax_abs_avg<-lmreuru_reger_multisel[lmreuru_reger_multisel$faidx=='lmrabs',]
+lm_urel_fax_sq_avg<-lmreuru_reger_multisel[lmr_reger_intmulti$faidx=='lmrsq',]
+
+lm_urel_fax_abs_avg[,c('Y','X1','R2','Est_X1','se_X1','pvalue_X1'
+                                ,'Est_X2','se_X2','pvalue_X2'
+                                ,'sig_X1','sig_X2','sig20_X1','sig20_X2')]
+
+lm_urel_fax_sq_avg[,c('Y','X1','R2','Est_X1','se_X1','pvalue_X1'
+                                ,'Est_X2','se_X2','pvalue_X2'
+                                ,'sig_X1','sig_X2','sig20_X1','sig20_X2')]
+
+#write.table(rbind(lm_urel_fax_abs_avg,lm_urel_fax_sq_avg),
+#              file='fluctuating_asymmetry/table/fa_int_faxregerssion_unrelated_multivariate_201001.txt',
+#              col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+
+```
+### plot FAabs beta from simple regression vs multiple regression
+```{r eval=T, fig.width = 8, warning=FALSE,fig.height = 6}
+sl_dattemp<-lmreuru_reger_int[lmreuru_reger_int$faidx=='lmrabs'&lmreuru_reger_int$WoFA=='FAx'
+                            &!is.element(lmreuru_reger_int$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm'))
+                          &lmreuru_reger_int$visit==1
+                          &lmreuru_reger_int$trait!='fatpct',]
+sl_dattemp$Y<-factor(sl_dattemp$Y,levels(as.factor(sl_dattemp$Y))[c(1,4,2,3)]
+                    ,labels=c('Disease count','rLRS','Froh1.5','Funi'))
+
+sl_dattemp$trait<-factor(sl_dattemp$trait,levels(as.factor(sl_dattemp$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+
+ml_dattemp<-lmreuru_reger_multi[lmreuru_reger_multi$faidx=='lmrabs'&lmreuru_reger_multi$WoFA=='FAx'
+                            &!is.element(lmreuru_reger_multi$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm'))
+                          &lmreuru_reger_multi$visit==1
+                          &lmreuru_reger_multi$trait!='fatpct',]
+ml_dattemp$Y<-factor(ml_dattemp$Y,levels(as.factor(ml_dattemp$Y))[c(1,4,2,3)]
+                    ,labels=c('Disease count','rLRS','Froh1.5','Funi'))
+
+ml_dattemp$trait<-factor(ml_dattemp$trait,levels(as.factor(ml_dattemp$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+
+all(ml_dattemp$X1==sl_dattemp$X)
+all(ml_dattemp$Y==sl_dattemp$Y)
+
+plot_dattemp<-cbind(sl_dattemp[,c('trait','Y','Est','se')],ml_dattemp[,c('Est_X1','se_X1')])
+plot_dattemp$model<-paste(plot_dattemp$Y,plot_dattemp$trait,sep=' on ')
+require(ggrepel)
+plot_sl_ml<-ggplot(plot_dattemp,aes(x=Est,y=Est_X1))+geom_point(color='red')+
+    labs(x='Gradients from simple linear regression',y='Gradients from multiple linear regression')+
+  geom_abline(slope=1,intercept=0,linetype=2,color='grey')+
+  annotate(geom='text',x=0.06,y=0.275,label='Disease count on Fat%',size=3.5)+
+  #geom_label_repel(aes(label=model),size=3.5,
+  #box.padding = unit(0.35, "lines"),
+  #  point.padding = unit(0.3, "lines"))
+  #geom_text(size=6,hjust=-1,vjust=2)
+   theme(
+    legend.position='none'
+    #,axis.text.x=element_blank()
+  ,axis.ticks.x=element_blank()
+  ,axis.text=element_text(size=12)
+  #,axis.title.x=element_text(size=12)
+  ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+
+  ,plot.title = element_text(size =12)
+  ,strip.text.x = element_text(size = 12)
+  )
+#ggsave(plot_sl_ml, width = 5, height = 5, filename = "fluctuating_asymmetry/plot/Simplevsmultiple_lm_beta_se_vist1_faabs.pdf")
+
+slavg_dattemp<-lmreuru_reger_int[lmreuru_reger_int$faidx=='lpravg'&lmreuru_reger_int$WoFA=='FAx'
+                            &!is.element(lmreuru_reger_int$Y,c('diseaseSUM_OF_CASES','rLRSf','rLRSm'))
+                          &lmreuru_reger_int$visit==1
+                          &lmreuru_reger_int$trait!='fatpct',]
+slavg_dattemp$Y<-factor(slavg_dattemp$Y,levels(as.factor(slavg_dattemp$Y))[c(1,4,2,3)]
+                    ,labels=c('Disease count','rLRS','Froh1.5','Funi'))
+
+slavg_dattemp$trait<-factor(slavg_dattemp$trait,levels(as.factor(slavg_dattemp$trait))
+                      ,labels=c('BMD','Fat%','HGS','logMAR','SRT'))
+all(slavg_dattemp$trait==sl_dattemp$trait)
+all(slavg_dattemp$Y==sl_dattemp$Y)
+
+
+simplevsmultiple<-cbind(slavg_dattemp[,c('trait','Y','Est','se','pvalue')]
+                        ,sl_dattemp[,c('Est','se','pvalue')]
+                        ,ml_dattemp[,c('Est_X1','se_X1','pvalue_X1','Est_X2','se_X2','pvalue_X2')])
+
+#write.table(simplevsmultiple,file='fluctuating_asymmetry/table/simplevsmultiple_Est_se_pvalue_210317.txt',
+#              col.names=TRUE,row.names=FALSE,append=FALSE,quote=FALSE,sep='\t')
+
+```
+### gwas on delta
+```{r eval=F}
+
+ukbeuru_fa_gwas<-ukbeuru_fa_final[,c(1,1,grep('lmrabs_1',colnames(ukbeuru_fa_final)),grep('lmrsq_1',colnames(ukbeuru_fa_final)))]
+#write.table(ukbeuru_fa_gwas,file='fluctuating_asymmetry/table/ukbeuru_fa_gwas_201026.pheno',col.names=TRUE,row.names=FALSE,append=F,quote=F,sep='\t')
+
+scp "fluctuating_asymmetry/table/"ukbeuru_fa_gwas_201026.pheno uqgni@delta2.imb.uq.edu.au:/home/uqgni/90days/2_FA/unrelated_rdm/pheno/
+#g.ni@delta.imb.uq.edu.au:/shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/pheno/
+##################
+## addtive effect
+  
+#!/bin/bash -l
+#PBS -S /bin/bash
+#PBS -N rep2
+#PBS -A UQ-IMB-CNSG
+#PBS -l walltime=3:00:00
+#PBS -l select=1:ncpus=1:mem=10GB
+#PBS -J 1-12
+
+module load plink/1.09
+
+for i in {1..22}
+do 
+    echo $i
+    cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/
+    plink --bfile /gpfs/gpfs01/polaris/Q0286/UKBiobank/v3EUR_HM3/ukbEUR_imp_chr${i}_v3_HM3 \
+    --noweb \
+    --allow-no-sex \
+    --linear \
+    --chr ${i} \
+    --pheno ./pheno/ukbeuru_fa_gwas_201026.pheno \
+    --mpheno ${PBS_ARRAY_INDEX} \
+    --out ./add_eff/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX} >> ./add_eff/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX}.mylog
+done
+
+
+##################
+## dominate effect
+#!/bin/bash -l
+#PBS -S /bin/bash
+#PBS -N rep2
+#PBS -A UQ-IMB-CNSG
+#PBS -l walltime=10:00:00
+#PBS -l select=1:ncpus=1:mem=10GB
+#PBS -J 1-12
+
+module load plink/1.09
+
+for i in {1..22}
+do 
+    echo $i
+    cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/
+    plink --bfile /gpfs/gpfs01/polaris/Q0286/UKBiobank/v3EUR_HM3/ukbEUR_imp_chr${i}_v3_HM3 \
+    --noweb \
+    --allow-no-sex \
+    --linear dominant \
+    --chr ${i} \
+    --pheno ./pheno/ukbeuru_fa_gwas_201026.pheno \
+    --mpheno ${PBS_ARRAY_INDEX} \
+    --out ./dominat/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX} >> ./dominat/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX}.mylog
+done
+
+##################
+## dominate effect 
+## genotypic
+  
+#!/bin/bash -l
+#PBS -S /bin/bash
+#PBS -N dom
+#PBS -A UQ-IMB-CNSG
+#PBS -l walltime=10:00:00
+#PBS -l select=1:ncpus=1:mem=10GB
+#PBS -J 1-12
+
+module load plink/1.09
+
+for i in {1..22}
+do 
+    echo $i
+    cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/
+    plink --bfile /gpfs/gpfs01/polaris/Q0286/UKBiobank/v3EUR_HM3/ukbEUR_imp_chr${i}_v3_HM3 \
+    --noweb \
+    --allow-no-sex \
+    --linear genotypic \
+    --chr ${i} \
+    --pheno ./pheno/ukbeuru_fa_gwas_201026.pheno \
+    --mpheno ${PBS_ARRAY_INDEX} \
+    --out ./dominat_genotypic/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX} >> ./dominat_genotypic/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX}.mylog
+done
+
+##################
+## standardize phenotype on delta2
+
+dat<-read.table('ukbeuru_fa_gwas_noheader_201026.pheno',header=F)
+#dat[,3:ncol(dat)]<-sapply(dat[,3:ncol(dat)], function(x){scale(x)})
+#apply(dat,2,function(x){mean(x,na.rm=TRUE)})
+#apply(dat,2,function(x){var(x,na.rm=TRUE)})
+for(i in 3:ncol(dat)){
+  cat(i,'\n')
+  dat[!is.na(dat[,i]),i]<-qnorm((rank(dat[!is.na(dat[,i]),i])-0.5)/sum(!is.na(dat[,i])))
+   
+  
+}
+
+#write.table(dat,file='ukbeuru_fa_gwas_noheader_phenoint_201026.pheno'
+#            ,col.names = F,row.names = F,append=F,quote=F,sep='\t')
+
+##################
+## dominate effect 
+## genotypic
+## delta 2
+
+#!/bin/bash -l
+#PBS -S /bin/bash
+#PBS -N dom
+#PBS -A UQ-IMB-CNSG
+#PBS -l walltime=10:00:00
+#PBS -l select=1:ncpus=1:mem=10GB
+#PBS -J 1-12
+
+module load plink/1.09
+
+for i in {1..22}
+do 
+    echo $i
+    cd /home/uqgni/90days/2_FA/fa_ukb/unrelated_rdm
+    plink --bfile /home/uqgni/90days/0_ukbb_data/v3EUR_HM3/ukbEUR_imp_chr${i}_v3_HM3 \
+    --noweb \
+    --allow-no-sex \
+    --linear genotypic \
+    --chr ${i} \
+    --pheno ./pheno/ukbeuru_fa_gwas_noheader_phenozs_201026.pheno \
+    --mpheno ${PBS_ARRAY_INDEX} \
+    --out ./dominat_genotypic_phenozs/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX} >> ./dominat_genotypic_phenozs/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX}.mylog
+done
+
+##################
+## epistatsis effect
+## trait 1,3
+  
+#!/bin/bash -l
+#PBS -S /bin/bash
+#PBS -N eps
+#PBS -A UQ-IMB-CNSG
+#PBS -l walltime=20:00:00
+#PBS -l select=1:ncpus=10:mem=10GB
+#PBS -J 1-22
+
+module load plink/1.09
+mp=3
+#for i in {1..22}
+#do 
+#    echo $i
+    cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/
+    plink --bfile /gpfs/gpfs01/polaris/Q0286/UKBiobank/v3EUR_HM3/ukbEUR_imp_chr${PBS_ARRAY_INDEX}_v3_HM3 \
+    --noweb \
+    --allow-no-sex \
+    --epistasis \
+    --threads 10 \
+    --chr ${PBS_ARRAY_INDEX} \
+    --pheno ./pheno/ukbeuru_fa_gwas_201026.pheno \
+    --mpheno ${mp} \
+    --out ./epistatsis/ukbeuru_fa_chr${PBS_ARRAY_INDEX}_trait${mp} >> ./epistatsis/ukbeuru_fa_chr${PBS_ARRAY_INDEX}_trait${mp}.mylog
+
+
+  
+```
+### LDSC on delta
+```{r eval=F}
+
+```
+### simulation with healthy participant bias
+```{r eval =T}
+library(MASS)
+bias_b<-NULL
+summ_info<-NULL
+sigma<-matrix(c(1,0.3,0.3,1),2,2)
+for(i in 1:100){
+  cat(i,'\n')
+  set.seed(123+i)
+  simdat<-mvrnorm(n=1000,mu=c(0,0),sigma)
+  tb<-lm(simdat[,1]~simdat[,2])$coefficients[2]
+  summ_b<-c(mean(simdat[,1],na.rm=TRUE),var(simdat[,1],na.rm=TRUE),mean(simdat[,2],na.rm=TRUE),var(simdat[,2],na.rm=TRUE),cov(simdat[,1],simdat[,2]))
+  
+  toex<-quantile(simdat[,1],probs=0.25)
+  wasex<-(simdat[,1]<toex)
+  simdat<-simdat[!wasex,]
+  
+  ab<-lm(simdat[,1]~simdat[,2])$coefficients[2]
+  summ_a<-c(mean(simdat[,1],na.rm=TRUE),var(simdat[,1],na.rm=TRUE),mean(simdat[,2],na.rm=TRUE),var(simdat[,2],na.rm=TRUE),cov(simdat[,1],simdat[,2]))
+  resone<-c(tb,ab)
+  bias_b<-rbind(bias_b,resone)
+  summ_infoone<-c(summ_b,summ_a)
+  summ_info<-rbind(summ_info,summ_infoone)
+}
+
+bias_b<-as.data.frame(bias_b)
+colnames(bias_b)<-c('True_b','est_b')
+rownames(bias_b)<-NULL
+c(mean(bias_b[,1]),sd(bias_b[,1]),mean(bias_b[,2]),sd(bias_b[,2]))
+plot(x=bias_b[,1],y=bias_b[,2])
+head(summ_info)
+
+```
+### combine chr-wise data
+```{bash eval=F}
+
+### add_eff
+cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/add_eff
+
+for i in {1..12}
+do  
+    echo ${i}
+    cc=$(find . -maxdepth 1 -type f -name "*ukbeuru*chr*trait${i}.*linear" | wc -l)
+    if [ ${cc} == 22 ] 
+    then
+        awk 'FNR > 1' *ukbeuru*chr*trait${i}.*linear > tempfile
+        head -1 *ukbeuru*chr1_trait${i}.*linear | cat - tempfile > ukbeuru_chrall_trait${i}.assoc.linear
+        rm tempfile
+    fi
+done
+
+### add_eff_phenoint
+cd /home/uqgni/90days/2_FA/fa_ukb/unrelated_rdm/add_eff_phenoint
+
+for i in {1..12}
+do  
+    echo ${i}
+    cc=$(find . -maxdepth 1 -type f -name "*ukbeuru*chr*trait${i}.*linear" | wc -l)
+    if [ ${cc} == 22 ] 
+    then
+        awk 'FNR > 1' *ukbeuru*chr*trait${i}.*linear > tempfile
+        head -1 *ukbeuru*chr1_trait${i}.*linear | cat - tempfile > ukbeuru_chrall_trait${i}.assoc.linear
+        rm tempfile
+    fi
+done
+
+
+### dominate
+cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/dominat
+
+for i in {1..12}
+do  
+    echo ${i}
+    cc=$(find . -maxdepth 1 -type f -name "*ukbeuru*chr*trait${i}.*linear" | wc -l)
+    if [ ${cc} == 22 ] 
+    then
+        awk 'FNR > 1' *ukbeuru*chr*trait${i}.*linear > tempfile
+        head -1 *ukbeuru*chr1_trait${i}.*linear | cat - tempfile > ukbeuru_chrall_trait${i}.assoc.linear
+        rm tempfile
+    fi
+done
+
+
+### dominate_genotypic
+cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/dominat_genotypic
+
+for i in {1..12}
+do  
+    echo ${i}
+    cc=$(find . -maxdepth 1 -type f -name "*ukbeuru*chr*trait${i}.*linear" | wc -l)
+    if [ ${cc} == 22 ] 
+    then
+        awk 'FNR > 1' *ukbeuru*chr*trait${i}.*linear > tempfile
+        grep 'DOMDEV' tempfile > tempfile2
+        head -1 *ukbeuru*chr1_trait${i}.*linear | cat - tempfile2 > ukbeuru_chrall_trait${i}.assoc.linear
+        rm tempfile*
+    fi
+done
+
+### dominat_genotypic_phenozs
+cd /home/uqgni/90days/2_FA/fa_ukb/unrelated_rdm/dominat_genotypic_phenozs
+
+for i in {1..12}
+do  
+    echo ${i}
+    cc=$(find . -maxdepth 1 -type f -name "*ukbeuru*chr*trait${i}.*linear" | wc -l)
+    if [ ${cc} == 22 ] 
+    then
+        awk 'FNR > 1' *ukbeuru*chr*trait${i}.*linear > tempfile
+        grep 'DOMDEV' tempfile > tempfile2
+        head -1 *ukbeuru*chr1_trait${i}.*linear | cat - tempfile2 > ukbeuru_chrall_trait${i}.assoc.linear
+        rm tempfile*
+    fi
+done
+
+
+### dominat_genotypic_phenoint
+cd /home/uqgni/90days/2_FA/fa_ukb/unrelated_rdm/dominat_genotypic_phenoint
+
+for i in {1..12}
+do  
+    echo ${i}
+    cc=$(find . -maxdepth 1 -type f -name "*ukbeuru*chr*trait${i}.*linear" | wc -l)
+    if [ ${cc} == 22 ] 
+    then
+        awk 'FNR > 1' *ukbeuru*chr*trait${i}.*linear > tempfile
+        grep 'DOMDEV' tempfile > tempfile2
+        head -1 *ukbeuru*chr1_trait${i}.*linear | cat - tempfile2 > ukbeuru_chrall_trait${i}.assoc.linear
+        rm tempfile*
+    fi
+done
+
+### epistatis
+cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/epistatsis
+
+i=1
+#for i in {1..12}
+#do  
+    echo ${i}
+    cc=$(find . -maxdepth 1 -type f -name "*ukbeuru*chr*trait${i}.*epi.qt" | wc -l)
+    if [ ${cc} == 22 ] 
+    then
+        awk 'FNR > 1' *ukbeuru*chr*trait${i}.*epi.qt > tempfile
+        head -1 *ukbeuru*chr1_trait${i}.*epi.qt | cat - tempfile > ukbeuru_chrall_trait${i}.epi.qt
+        rm tempfile
+    fi
+#done
+
+cd "fluctuating_asymmetry/unrelated_rdm"
+
+scp g.ni@delta.imb.uq.edu.au:/shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/epistatsis/*chrall* ./epistatsis/
+scp g.ni@delta.imb.uq.edu.au:/shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/add_eff/*chrall* ./add_eff/
+scp g.ni@delta.imb.uq.edu.au:/shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/dominat/*chrall* ./dominat/
+scp g.ni@delta.imb.uq.edu.au:/shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/dominat_genotypic/*chrall* ./dominat_genotypic/
+
+scp uqgni@delta2.imb.uq.edu.au:/home/uqgni/90days/2_FA/fa_ukb/unrelated_rdm/dominat_genotypic_phenozs/*chrall* ./dominat_genotypic_phenozs
+scp uqgni@delta2.imb.uq.edu.au:/home/uqgni/90days/2_FA/fa_ukb/unrelated_rdm/dominat_genotypic_phenoint/*chrall* ./dominat_genotypic_phenoint
+
+scp uqgni@delta2.imb.uq.edu.au:/home/uqgni/90days/2_FA/fa_ukb/unrelated_rdm/add_eff_phenoint/*chrall* ./add_eff_phenoint
+
+```
+### manhattan plot addtive
+```{r eval=F}
+### on local 
+library(qqman)
+#traitname<-colnames(ukbeuru_fa_gwas)[-c(1:2)]
+traitname<-c('logMAR','SRT','BMD','HGS','Fat%','Fat%')
+snplist<-read.table("fluctuating_asymmetry/unrelated_rdm/ukbEURu_imp_all_v3_HM3_maf01.snpList")
+#pdf("fluctuating_asymmetry/plot/manhattan_abs.pdf"
+#		,width=3.5,height=10)
+ #png("fluctuating_asymmetry/plot/manhattan_add_abs.png"
+png("fluctuating_asymmetry/plot/manhattan_add_abs_maf01.png"
+		,width=12,height=18,units='cm',res=300) 	
+  	par(mfrow=c(5,1),las=1,mar=c(3,2.5,1,0.1)
+	,cex=0.8,mgp=c(1,0.25,0),tck=-0.0125
+	,cex.lab=1,cex.axis=1)
+ for (i in c(3,6,4,1,2)){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/add_eff/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+  dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+  
+  	manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c("grey", "skyblue")
+		,main=traitname[i],font.main=1,cex.main=0.9
+		,suggestiveline=FALSE
+		,genomewideline = -log10(5e-08))
+}
+dev.off()
+
+ png("fluctuating_asymmetry/plot/manhattnn_add_sq_maf01.png"
+		,width=12,height=18,units='cm',res=300) 	
+  	par(mfrow=c(5,1),las=1,mar=c(3,2.5,1,0.1)
+	,cex=0.8,mgp=c(1,0.25,0),tck=-0.0125
+	,cex.lab=1,cex.axis=1)
+ for (i in c(3,6,4,1,2)+6){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/add_eff/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+  dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+  	manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c("grey", "skyblue")
+		,main=traitname[i-6],font.main=1,cex.main=0.9
+		,suggestiveline=FALSE
+		,genomewideline = -log10(5e-08))
+}
+dev.off()
+
+
+```
+### manhattan plot add_int
+```{r eval=F}
+### on local 
+library(qqman)
+#traitname<-colnames(ukbeuru_fa_gwas)[-c(1:2)]
+traitname<-c('logMAR','SRT','BMD','HGS','Fat%','Fat%')
+snplist<-read.table("fluctuating_asymmetry/unrelated_rdm/ukbEURu_imp_all_v3_HM3_maf01.snpList")
+#pdf("fluctuating_asymmetry/plot/manhattan_abs.pdf"
+#		,width=3.5,height=10)
+ png("fluctuating_asymmetry/plot/manhattan_add_phenoint_abs.png"
+		,width=12,height=18,units='cm',res=300) 	
+  	par(mfrow=c(5,1),las=1,mar=c(3,2.5,1,0.1)
+	,cex=0.8,mgp=c(1,0.25,0),tck=-0.0125
+	,cex.lab=1,cex.axis=1)
+ #for (i in c(3,6,4,1,2)){
+  	for (i in c(3,1,2)){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/add_eff_phenoint/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+   dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+  	#manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c('#FAA094FF','#66CDAA')
+   manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c('#2A9D8F','#F4A261')
+		,main=traitname[i],font.main=1,cex.main=0.8
+		,suggestiveline=FALSE
+		,genomewideline = -log10(5e-08))
+}
+dev.off()
+```
+### lambda addtive
+```{r}
+traitname<-c('logMAR','SRT','BMD','HGS','Fat%','Fat%')
+snplist<-read.table("fluctuating_asymmetry/unrelated_rdm/ukbEURu_imp_all_v3_HM3_maf01.snpList")
+lambda_addtive<-NULL
+for (i in c(3,6,4,1,2)){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/add_eff/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+  dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+
+  lambdaone<-median(qnorm(dattemp$P/2,0,1)^2)/qchisq(1/2, df = 1)
+  resone<-c('abs',i,lambdaone)
+  lambda_addtive<-rbind(lambda_addtive,resone)
+  }
+lambda_addtive<-cbind(traitname[1:5],lambda_addtive)
+lambda_addtive
+```
+
+
+### manhattan plot dominance
+```{r }
+### on local 
+library(qqman)
+#traitname<-colnames(ukbeuru_fa_gwas)[-c(1:2)]
+traitname<-c('logMAR','SRT','BMD','HGS','Fat%','Fat%')
+snplist<-read.table("fluctuating_asymmetry/unrelated_rdm/ukbEURu_imp_all_v3_HM3_maf01.snpList")
+#pdf("fluctuating_asymmetry/plot/manhattan_abs.pdf"
+#		,width=3.5,height=10)
+ png("fluctuating_asymmetry/plot/manhattan_dominate_abs.png"
+		,width=12,height=18,units='cm',res=300) 	
+  	par(mfrow=c(5,1),las=1,mar=c(3,2.5,1,0.1)
+	,cex=0.8,mgp=c(1,0.25,0),tck=-0.0125
+	,cex.lab=1,cex.axis=1)
+ for (i in c(3,6,4,1,2)){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+   dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+  	#manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c('#FAA094FF','#66CDAA')
+   manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c('#2A9D8F','#F4A261')
+		,main=traitname[i],font.main=1,cex.main=0.8
+		,suggestiveline=FALSE
+		,genomewideline = -log10(5e-08))
+}
+dev.off()
+
+
+ png("fluctuating_asymmetry/plot/manhattan_dominate_sq.png"
+		,width=12,height=18,units='cm',res=300) 	
+  	par(mfrow=c(5,1),las=1,mar=c(3,2.5,1,0.1)
+	,cex=0.8,mgp=c(1,0.25,0),tck=-0.0125
+	,cex.lab=1,cex.axis=1)
+ for (i in c(3,6,4,1,2)+6){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+  dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+  	manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c('#FAA094FF','#66CDAA')
+		,main=traitname[i-6],font.main=1,cex.main=0.8
+		,suggestiveline=FALSE
+		,genomewideline = -log10(5e-08))
+}
+dev.off()
+
+```
+### manhattan plot dominance phenINT
+```{r}
+library(qqman)
+#traitname<-colnames(ukbeuru_fa_gwas)[-c(1:2)]
+traitname<-c('logMAR','SRT','BMD','HGS','Fat%','Fat%')
+snplist<-read.table("fluctuating_asymmetry/unrelated_rdm/ukbEURu_imp_all_v3_HM3_maf01.snpList")
+#pdf("fluctuating_asymmetry/plot/manhattan_abs.pdf"
+#		,width=3.5,height=10)
+ png("fluctuating_asymmetry/plot/manhattan_dominate_phenoint_abs.png"
+		,width=12,height=18,units='cm',res=300) 	
+  	par(mfrow=c(5,1),las=1,mar=c(3,2.5,1,0.1)
+	,cex=0.8,mgp=c(1,0.25,0),tck=-0.0125
+	,cex.lab=1,cex.axis=1)
+ for (i in c(3,6,4,1,2)){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_phenoint/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+   dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+  	#manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c('#FAA094FF','#66CDAA')
+   manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c('#2A9D8F','#F4A261')
+		,main=traitname[i],font.main=1,cex.main=0.8
+		,suggestiveline=FALSE
+		,genomewideline = -log10(5e-08))
+}
+dev.off()
+
+
+ png("fluctuating_asymmetry/plot/manhattan_dominate_phenoint_sq.png"
+		,width=12,height=18,units='cm',res=300) 	
+  	par(mfrow=c(5,1),las=1,mar=c(3,2.5,1,0.1)
+	,cex=0.8,mgp=c(1,0.25,0),tck=-0.0125
+	,cex.lab=1,cex.axis=1)
+ for (i in c(3,6,4,1,2)+6){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_phenoint/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+  dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+  	manhattan(dattemp,chr='CHR',bp='BP',p='P',col=c('#FAA094FF','#66CDAA')
+		,main=traitname[i-6],font.main=1,cex.main=0.8
+		,suggestiveline=FALSE
+		,genomewideline = -log10(5e-08))
+}
+dev.off()
+```
+
+### lambda dominance
+```{r}
+traitname<-c('logMAR','SRT','BMD','HGS','Fat%','Fat%')
+snplist<-read.table("fluctuating_asymmetry/unrelated_rdm/ukbEURu_imp_all_v3_HM3_maf01.snpList")
+
+lambda_dominance<-NULL
+for (i in c(3,6,4,1,2)){
+  cat(i,'\n')
+     dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+   dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+   lambdaone<-median(dattemp$BETA)/
+  resone<-c('abs',i,lambdaone)
+  lambda_dominance<-rbind(resone)
+}
+
+```
+
+### manhattan plot epistatis
+```{r eval=F,fig.width = 12, warning=FALSE,fig.height = 4}
+i<-1
+dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/epistatsis/ukbeuru_chrall_trait",i,'.epi.qt',sep=''),header=TRUE)
+  #dattemp<-dattemp[!is.na(dattemp$BETA),]
+  dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP1,snplist[,1])&is.element(dattemp$SNP2,snplist[,1]),]
+epi_plot<-ggplot(dattemp,aes(x=P))+
+      #geom_histogram(binwidth = 1/50)+
+      geom_histogram(bins = 100)+
+    geom_vline(xintercept = 0.05/nrow(dattemp), linetype="dashed", 
+                color = "red")+
+    #geom_vline(xintercept = 5e-8, linetype="dashed", 
+    #            color = "red")+
+      #scale_fill_manual(values=c("#69b3a2", "#404080",'red','blue'))+
+      labs(x='logMAR P-value')+
+      theme(
+        legend.position='none'
+        ,axis.text=element_text(size=rel(0.6))
+        ,axis.title=element_text(size=rel(0.6))
+        ,plot.margin = margin(0.2, 0.2, 0.5, 0.2, "cm")
+        ,plot.title = element_text(size =rel(0.6))
+        )
+#epi_plot_qq=ggplot(dattemp,aes(sample=dattemp$P))+stat_qq() + stat_qq_line()+labs(x='Theoretical',y='Emprical',title='logMAR P-value')
+#epi_one<-grid.arrange(epi_plot,epi_plot_qq,nrow=1)
+ggsave(epi_plot,width =7 , height =6 , filename = "fluctuating_asymmetry/plot/epistatis_hist_logMAR_absv1_maf01.pdf")
+
+table(dattemp$P<0.05/nrow(dattemp))
+dat_sig<-dattemp[dattemp$P<(0.05/nrow(dattemp)),]
+
+head(dat_sig)
+
+summary(dat_sig$P)
+```
+### significant dominance_genotypic
+```{r eval=T}
+i=3
+dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+   dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+sigsnp_maf<-dattemp[dattemp$P<=5e-8,]
+#cd "fluctuating_asymmetry/unrelated_rdm/dominat_genotypic"
+#awk '$9 <= 5e-8' ukbeuru_chrall_trait3.assoc.linear > bmd_sig.txt
+#awk '$9 <= 5e-8' ukbeuru_chrall_trait2.assoc.linear > srt_sig.txt
+#awk '{print $2,$9}' OFS="\t" bmd_sig.txt > bmd_sig_snp
+
+#write.table(sigsnp_maf[,c('SNP','P')],file="fluctuating_asymmetry/unrelated_rdm/dominat_genotypic/bmd_sig.txt",col.names=T,row.names=F,append=F,quote=F,sep='\t')
+
+sigsnp_maf
+```
+### significant dominance_genotypic_phenozs
+```{r eval=T}
+i=3
+dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_phenozs/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+   dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+sigsnp_maf_phenotzs<-dattemp[dattemp$P<=5e-8,]
+sigsnp_maf_phenotzs
+#write.table(sigsnp_maf_phenotzs[,c('SNP','P')],file="fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_phenozs/bmd_sig.txt",col.names=T,row.names=F,append=F,quote=F,sep='\t')
+
+
+```
+### significant dominance_genotypic_phenoint
+```{r eval=T}
+i=3
+dattemp<-read.table(paste("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_phenoint/ukbeuru_chrall_trait",i,'.assoc.linear',sep=''),header=TRUE)
+  dattemp<-dattemp[!is.na(dattemp$BETA)&is.element(dattemp$SNP,snplist[,1]),]
+sigsnp_maf_phenoint<-dattemp[dattemp$P<=5e-8,]
+sigsnp_maf_phenoint
+#dattemp[is.element(dattemp$SNP,sigsnp_maf$SNP),]
+#write.table(sigsnp_maf_phenoint[,c('SNP','P')],file="fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_phenoint/bmd_sig.txt",col.names=T,row.names=F,append=F,quote=F,sep='\t')
+
+
+```
+```{bash}
+module load plink/1.09
+
+PBS_ARRAY_INDEX=3
+for i in {1..22}
+do
+    echo $i
+    cd /shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/
+    plink --bfile /gpfs/gpfs01/polaris/Q0286/UKBiobank/v3EUR_HM3/ukbEUR_imp_chr${i}_v3_HM3 \
+    --noweb \
+    --allow-no-sex \
+    --freq \
+    --clump  ./dominat_genotypic/bmd_sig.txt \
+    --out ./dominat_genotypic/ukbeuru_fa_chr${i}_trait${PBS_ARRAY_INDEX}_idpsig
+done  
+
+cd ./dominat_genotypic
+
+i=3
+awk 'FNR > 1' *ukbeuru*chr*trait${i}_idpsig.clumped > tempfile
+        head -1 ukbeuru_fa_chr1_trait${i}_idpsig.clumped | cat - tempfile > ukbeuru_chrall_trait${i}.idpsig.txt
+        rm tempfile
+        
+# remove the empty rows
+sed -i '/^$/d' ukbeuru_chrall_trait${i}.idpsig.txt
+# all independent
+
+scp g.ni@delta.imb.uq.edu.au:/shares/compbio/Group-Visscher/gni/fa_ukb/unrelated_rdm/dominat_genotypic/*all*sig* .
+
+```
+### 
+```{r eval=T}
+sigsnp<-read.table("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic/ukbeuru_chrall_trait3.idpsig.txt",header=TRUE)
+frqsigsnp<-read.table('fluctuating_asymmetry/unrelated_rdm/dominat_genotypic/ukbeuru_chrall_trait3.idpsig.frq',header=TRUE)
+sigsnp<-merge(sigsnp,frqsigsnp,by='SNP',all.x=TRUE)
+sigsnp[order(sigsnp$CHR.x),c('SNP','CHR.x','MAF','BP','P')]
+#write.table(sigsnp[order(sigsnp$CHR.x),c('SNP','CHR.x','MAF','BP','P')],file="fluctuating_asymmetry/table/bmd_dominate_abs_sigidp.txt"
+#            ,col.names=T,row.names=F,append=F,quote=F,sep='\t')
+
+
+```
+### info of significant SNP; phenotype is z score
+```{r eval=T}
+sigsnp<-read.table("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_phenozs/bmd_sig.txt",header=TRUE)
+frqsigsnp<-read.table('fluctuating_asymmetry/unrelated_rdm/dominat_genotypic/ukbeuru_chrall_trait3.idpsig.frq',header=TRUE)
+
+sigsnp<-merge(sigsnp,frqsigsnp,by='SNP',all.x=TRUE)
+sigsnp[order(sigsnp$CHR),c('SNP','CHR','MAF','P')]
+#write.table(sigsnp[order(sigsnp$CHR),c('SNP','CHR','MAF','P')],file="fluctuating_asymmetry/table/bmd_dominate_abs_sig_phenozscore.txt"
+#            ,col.names=T,row.names=F,append=F,quote=F,sep='\t')
+
+```
+
+### extract gentoype of those significat SNPs for dominate effect
+
+```{r, eval=F}
+### on delta2
+
+##################
+## dominate effect
+#!/bin/bash -l
+#PBS -S /bin/bash
+#PBS -N rep2
+#PBS -A UQ-IMB-CNSG
+#PBS -l walltime=10:00:00
+#PBS -l select=1:ncpus=1:mem=10GB
+#PBS -J 1-12
+
+module load plink/1.09
+
+for i in {1..22}
+do 
+    echo $i
+    cd /home/uqgni/90days/2_FA/unrelated_rdm/dominat_genotypic_snpdata
+    plink --bfile /home/uqgni/60days/0_ukbb_data/v3EURu_HM3/ukbEURu_imp_chr${i}_v3_HM3 \
+    --noweb \
+    --allow-no-sex \
+    --extract /home/uqgni/90days/2_FA/unrelated_rdm/dominat_genotypic/bmd_sig_snp \
+    --recode A \
+    --out ukbeuru_fa_chr${i} >> ukbeuru_fa_chr${i}.mylog
+done
+
+scp uqgni@delta2.imb.uq.edu.au:/home/uqgni/90days/2_FA/unrelated_rdm/dominat_genotypic_snpdata/*raw .
+
+
+```
+
+### pheno per genotype 
+```{r}
+
+options(stringsAsFactors = FALSE)
+filein<-system('ls "fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_snpdata"/*raw',intern=TRUE)
+
+gt_sig_dom<-read.table(filein[1],header=TRUE)
+
+for (i in 2:length(filein)){
+cat(i,'\n')
+datone<-read.table(filein[i],header=TRUE)
+  if(all(datone[,1]==gt_sig_dom[,1])){
+    datmp<-as.data.frame(datone[,-c(1:6)])
+    colnames(datmp)<-colnames(datone)[-c(1:6)]
+    
+    gt_sig_dom<-cbind(gt_sig_dom,datmp)
+  }else{
+    cat('individual order different')
+  }
+  
+}
+
+
+pheno<-read.table("fluctuating_asymmetry/table/ukbeuru_fa_gwas_201026.pheno",header=T)
+dim(pheno)
+#456061     14
+dim(gt_sig_dom)
+#348501     17
+pheno_gt_sig_dom<-merge(pheno,gt_sig_dom,by='FID',all=F)
+dim(pheno_gt_sig_dom)
+#348231     30
+
+nrobs_gt<-apply(gt_sig_dom[,-c(1:6)],2,table)
+nrobs_gt
+phenotemp<-pheno_gt_sig_dom[!is.na(pheno_gt_sig_dom$bmd_lmrabs_1),]
+nrobs_gt_nona<-apply(phenotemp[,-c(1:19)],2,table)
+nrobs_gt_nona[,c(1,3,10,8,9,11,2,4:7)]
+
+bmdsigsnp[c(1,3,10,8,9,11)]
+
+```
+
+
+### bootstrap 
+```{r eval=T}
+bmdsigsnp<-colnames(gt_sig_dom)[7:ncol(gt_sig_dom)]
+pheno_gt_sig_dom_2<-pheno_gt_sig_dom[,c(5,20:ncol(pheno_gt_sig_dom))]
+pheno_gt_sig_dom_2<-pheno_gt_sig_dom_2[!is.na(pheno_gt_sig_dom_2$bmd_lmrabs_1),]
+
+dim(pheno_gt_sig_dom_2)
+#[1] 109771     12
+nrep=10000
+bt_bmd_est<-NULL
+for(snp in bmdsigsnp){
+  btone<-NULL
+  for (i in 0:nrep){
+    cat(snp,i,'\n')
+    if(i==0){idx=1:nrow(pheno_gt_sig_dom_2)
+    }else{
+      set.seed(i)
+      idx<-sample(1:nrow(pheno_gt_sig_dom_2),nrow(pheno_gt_sig_dom_2),replace = T)
+    }
+      datemp<-pheno_gt_sig_dom_2[idx,]
+
+      gt<-datemp[,snp]
+      gt[gt==2]<-0
+      fitlm=lm(datemp[,'bmd_lmrabs_1']~datemp[,snp]+gt)
+      estone<-summary(fitlm)$coefficients[3,1]
+      btone<-rbind(btone,estone)
+  }
+  bt_bmd_est<-cbind(bt_bmd_est,btone)
+}
+
+normone<-NULL
+for(snp in bmdsigsnp){
+  gt=pheno_gt_sig_dom[,snp]
+  gt[gt==2]<-0
+  fitlm=lm(pheno_gt_sig_dom[,'bmd_lmrabs_1']~pheno_gt_sig_dom[,snp]+gt)
+  estone<-c(summary(fitlm)$coefficients[3,])
+  normone<-rbind(normone,estone)
+}
+
+normone[c(1,3,10,8,9,11,2,4:7),]
+
+bt_est[c(1,3,10,8,9,11,2,4:7),]
+
+```
+
+```{r}
+```
+
+```{r}
+head(pheno_gt_sig_dom)
+ss=1.5
+ggp1<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs12137489_C, y = bmd_lmrabs_1,fill=factor(rs12137489_C))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs12137489_C",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  #,axis.ticks.x=element_blank()
+  #,axis.text.x=element_blank()
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+ggp2<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs17114158_C, y = bmd_lmrabs_1,fill=factor(rs17114158_C))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs17114158_C",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+ggp3<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs13425851_G, y = bmd_lmrabs_1,fill=factor(rs13425851_G))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs13425851_G",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+ggp4<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs3730276_G, y = bmd_lmrabs_1,fill=factor(rs3730276_G))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs3730276_G",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+ggp5<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs2194430_T, y = bmd_lmrabs_1,fill=factor(rs2194430_T))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs2194430_T",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+ggp6<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs2551926_T, y = bmd_lmrabs_1,fill=factor(rs2551926_T))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs2551926_T",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+ggp7<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs2709393_A, y = bmd_lmrabs_1,fill=factor(rs2709393_A))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs2709393_A",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+   )
+ggp8<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs17007854_G, y = bmd_lmrabs_1,fill=factor(rs17007854_G))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs17007854_G",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+   )
+ggp9<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs17150251_A, y = bmd_lmrabs_1,fill=factor(rs17150251_A))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs17150251_A",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+ggp10<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs6980276_G, y = bmd_lmrabs_1,fill=factor(rs6980276_G))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs6980276_G",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+ggp11<-ggplot(data = pheno_gt_sig_dom, mapping = aes(x = rs12004427_T, y = bmd_lmrabs_1,fill=factor(rs12004427_T))) +
+    geom_boxplot(width=1, position=position_dodge(0))+
+    #geom_boxplot(width=0.1,outlier.size = 0.15) +
+    labs(x='Genotype',y='BMD') +
+    scale_fill_manual(values = cbbPalette)+
+    annotate("text", x =1, y =Inf, hjust = 0, vjust = 1 , label = "rs12004427_T",size=ss,color='black')+
+   theme(
+    legend.position='none'
+    ,axis.title.y =element_text(size=8)
+    ,axis.title.x =element_text(size=8)
+  ,plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm")
+  ,plot.title = element_text(size =8)
+  ,strip.text.x = element_text(size = 8)
+  )
+
+
+p_bmd_gt_boxplot<-grid.arrange(ggp1,ggp2,ggp3,ggp4,ggp5,ggp6,ggp7,ggp8,ggp9,ggp10,ggp11,ncol=3,nrow=4)
+                               #layout_matrix=matrix(c(1,1,2),nrow=1))
+plot(p_bmd_gt_boxplot)
+png('p_bmd_gt_boxplot')
+
+#ggsave(p_bmd_gt_boxplot,width =10 , height =6 , filename = "fluctuating_asymmetry/plot/p_bmd_gt_boxplot")
+
+png("fluctuating_asymmetry/plot/p_bmd_gt_boxplot.png"
+		,width=12,height=18,units='cm',res=300) 	
+  	par(mfrow=c(5,1),las=1,mar=c(3,2.5,1,0.1)
+	,cex=0.8,mgp=c(1,0.25,0),tck=-0.0125
+	,cex.lab=1,cex.axis=1)
+  	plot(p_bmd_gt_boxplot)
+dev.off()
+
+```
+
+```{r}
+
+nrep=30000
+bt_bmd_est<-NULL
+for(snp in bmdsigsnp){
+  btone<-NULL
+  for (i in 20001:nrep){
+    cat(snp,i,'\n')
+    if(i==0){idx=1:nrow(pheno_gt_sig_dom_2)
+    }else{
+      set.seed(i)
+      idx<-sample(1:nrow(pheno_gt_sig_dom_2),nrow(pheno_gt_sig_dom_2),replace = T)
+    }
+      datemp<-pheno_gt_sig_dom_2[idx,]
+
+      gt<-datemp[,snp]
+      gt[gt==2]<-0
+      fitlm=lm(datemp[,'bmd_lmrabs_1']~datemp[,snp]+gt)
+      estone<-summary(fitlm)$coefficients[3,1]
+      btone<-rbind(btone,estone)
+  }
+  bt_bmd_est<-cbind(bt_bmd_est,btone)
+}
+
+colnames(bt_bmd_est)<-colnames(bt_bmd_est10k)
+rownames(bt_bmd_est)<-NULL
+bt_bmd_est<-as.data.frame(bt_bmd_est)
+
+bt_bmd_est30k<-rbind(bt_bmd_est20k,bt_bmd_est)
+
+```
+
+### plot bootstrap
+
+```{r,echo=FALSE eval=T}
+library(ggplot2)
+
+rownames(bt_bmd_est)<-NULL
+colnames(bt_bmd_est)<-bmdsigsnp
+bt_bmd_est<-as.data.frame(bt_bmd_est)
+
+bt_se<-apply(bt_bmd_est30k[-1,],2,function(x){sqrt(var(x))})
+bt_stat<-(bt_bmd_est30k[1,]/bt_se)^2
+bt_p<-apply(bt_stat,2,function(x){pchisq(x,1,lower.tail = FALSE)})
+
+#plots<-list()
+
+#for(snp in bmdsigsnp){
+#  p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+
+#      plots[[snp]]<-ggplot(bt_bmd_est[,snp],aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+#      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1.5)+
+#    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+#}
+
+snp<-bmdsigsnp[1]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot1<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[2]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot2<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[3]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot3<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[4]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot4<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[5]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot5<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[6]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot6<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[7]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot7<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[8]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot8<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[9]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot9<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[10]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot10<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+snp<-bmdsigsnp[11]
+p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+plot11<-ggplot(bt_bmd_est,aes(x=bt_bmd_est[,snp]))+geom_histogram(bins = 500)+
+      geom_vline(xintercept=bt_bmd_est[1,snp],linetype='dashed',col='orange',size=1)+
+    labs(x=paste0(snp,'; P-value=',round(p,3)),y='Count')
+
+print(plot1+plot2+plot3+plot4+plot5+
+        plot6+plot7+plot8+plot9+plot10+plot11
+      + plot_layout(ncol=4))
+
+
+plot_bmd_sigsnp_dom<-grid.arrange(plot1,plot2,plot3,plot4,plot5,
+        plot6,plot7,plot8,plot9,plot10,plot11,ncol=4)
+plot(plot_bmd_sigsnp_dom)
+ggsave(plot_bmd_sigsnp_dom, width = 15, height =12, filename = "fluctuating_asymmetry/plot/plot_bmd_sigsnp_dom.pdf")
+c(1,3,8,9,10,11)
+plot_bmd_sigsnp_dom_idp<-grid.arrange(plot1,plot3,plot8,plot9,plot10,plot11,ncol=3)
+
+ggsave(plot_bmd_sigsnp_dom_idp, width = 15, height =12, filename = "fluctuating_asymmetry/plot/plot_bmd_sigsnp_dom_independent.pdf")
+
+
+```
+### bootstrap hist
+```{r eval=T}
+
+bt_se<-apply(bt_bmd_est30k[-1,],2,function(x){sqrt(var(x))})
+bt_stat<-(bt_bmd_est30k[1,]/bt_se)^2
+bt_p<-apply(bt_stat,2,function(x){pchisq(x,1,lower.tail = FALSE)})
+
+bt_est<-as.data.frame(t(rbind(bt_bmd_est30k[1,],bt_se,bt_stat,bt_p)))
+colnames(bt_est)<-c('Est','BT_se','BT_chisq_stat','BT_chisq_p')
+bt_est[c(1,3,10,8,9,11,2,4:7),]
+
+
+tiff("fluctuating_asymmetry/plot/plot_bmd_sigsnp_dom.tif"
+	,units='cm',width=18,height=16,res=300)
+
+par(mfrow=c(3,4),mar=c(3,2.5,1,0.5),cex=0.8,cex.lab=0.8
+		,tck=-0.015,mgp=c(1.2,0.1,0))
+for(snp in bmdsigsnp[c(1,3,10,8,9,11,2,4:7)]){
+  p=bt_p[names(bt_p)==snp]
+  hist(bt_bmd_est30k[,snp],breaks=1000,xlab=paste0(snp,'; P=',round(p,4)),main='')
+  abline(v=bt_bmd_est30k[1,snp],col='orange',lty=2)
+  #abline(v=0,col='red',lty=2)
+}
+dev.off()
+
+tiff("fluctuating_asymmetry/plot/plot_bmd_sigsnp_dom_independent.tif"
+	,units='cm',width=18,height=14,res=300)
+
+par(mfrow=c(2,3),mar=c(3,2.5,1,0.5),cex=0.8,cex.lab=0.8
+		,tck=-0.015,mgp=c(1.2,0.1,0))
+for(snp in bmdsigsnp[c(1,3,10,8,9,11)]){
+  #p=(sum(bt_bmd_est[,snp]>=abs(bt_bmd_est[1,snp]))+sum(bt_bmd_est[,snp]<=(-abs(bt_bmd_est[1,snp]))))/nrep
+  p=bt_p[names(bt_p)==snp]
+  hist(bt_bmd_est30k[,snp],breaks=1000,xlab=paste0(snp,'; P=',round(p,4)),main='')
+  abline(v=bt_bmd_est30k[1,snp],col='orange',lty=2)
+  #abline(v=0,col='red',lty=2)
+}
+dev.off()
+
+```
+
+
+####  inted phenotype
+```{r eval=T}
+
+inted_bmd<-read.table("fluctuating_asymmetry/unrelated_rdm/dominat_genotypic_phenoint/bmd_dominant_sigsnp_int",header=T)
+
+```
+
+
+
+### numeric resluts for boxplot per genotype
+```{r}
+sigsnp<-colnames(gt_sig_dom)[-c(1:6)]
+bmd_gt_sigsnp_mean<-NULL
+for(i in 1:length(sigsnp)){
+    cat(i,'\n')
+    dat1<-aggregate(pheno_gt_sig_dom$bmd_lmrabs_1,list(pheno_gt_sig_dom[,sigsnp[i]])
+              ,function(x){return(c(mean(x,na.rm=TRUE),sd(x,na.rm=TRUE)/sqrt(sum(!is.na(x))),sum(!is.na(x))
+                                    ))})
+    dat1<-as.matrix(dat1)[,-1]
+    colnames(dat1)<-c(paste0(sigsnp[i],'_mean'),paste0(sigsnp[i],'_se'),paste0(sigsnp[i],'_nrobs'))
+    bmd_gt_sigsnp_mean<-cbind(bmd_gt_sigsnp_mean,dat1)
+    #table(pheno_gt_sig_dom$bmd_lmrabs_1,pheno_gt_sig_dom[,''])
+    
+}
+
+bmd_gt_sigsnp_mean
+
+```
+
+### common SNP
+```{bash eval=T}
+# extract non-na individuals
+awk '$5 != "NA"' ukbeuru_fa_gwas_201026.pheno | cut -f1,2,5 > bmd_nonNA.pheno
+# MAF
+
+module load plink/1.09
+i<-1
+    echo $i
+    cd /home/uqgni/90days/2_FA/unrelated_rdm/dominat_genotypic_snpdata
+    plink --bfile /home/uqgni/90days/0_ukbb_data/v3EURu_HM3/ukbEURu_imp_chr1_v3_HM3 \
+    --allow-no-sex \
+    --keep /home/uqgni/90days/2_FA/unrelated_rdm/pheno/bmd_nonNA.pheno \
+    --freq \
+    --out freq_ukbeuru_fa_chr${i} >> ukbeuru_fa_chr${i}.mylog
+done
+
+awk '$5 > 0.25' freq_ukbeuru_fa_chr.frq | head -6 > temp
+awk '{print $2}' temp | tail -5 > snpsel
+
+ plink --bfile /home/uqgni/90days/0_ukbb_data/v3EURu_HM3/ukbEURu_imp_chr1_v3_HM3 \
+    --allow-no-sex \
+    --keep /home/uqgni/90days/2_FA/unrelated_rdm/pheno/bmd_nonNA.pheno \
+    --extract snpsel \
+    --recode A \
+    --out ukbeuru_fa_chr${i}_maf25 >> uukbeuru_fa_chr${i}_maf25
+
+scp uqgni@delta2.imb.uq.edu.au:/home/uqgni/90days/2_FA/unrelated_rdm/dominat_genotypic_snpdata/*raw .
+
+    #--extract /home/uqgni/90days/2_FA/unrelated_rdm/dominat_genotypic/bmd_sig_snp \
+    #--recode A \
+
+```
+
+### Bootstrap on delta2 for SNP with maf> 0.25
+```{r eval=T}
+
+options(stringsAsFactors = F)
+pheno<-read.table("/home/uqgni/90days/2_FA/unrelated_rdm/pheno/bmd_nonNA.pheno",header=T)
+genotype<-read.table("/home/uqgni/90days/2_FA/unrelated_rdm/dominat_genotypic_snpdata/ukbeuru_fa_chr_maf25.raw",header=T)
+dat<-merge(pheno[,-2],genotype[,-2],by='FID',all=F)
+bmdsigsnp<-colnames(dat)[-c(1:6)]
+nrep=10000
+bt_bmd_est<-NULL
+ss<-3
+for(snp in bmdsigsnp[ss]){
+  btone<-NULL
+  for (i in 1:nrep){
+    cat(snp,i,'\n')
+    if(i==0){idx=1:nrow(dat)
+    }else{
+      set.seed(i)
+      idx<-sample(1:nrow(dat),nrow(dat),replace = T)
+    }
+      datemp<-dat[idx,]
+
+      gt<-datemp[,snp]
+      gt[gt==2]<-0
+      fitlm=lm(datemp[,'bmd_lmrabs_1']~datemp[,snp]+gt)
+      estone<-summary(fitlm)$coefficients[3,1]
+      btone<-rbind(btone,estone)
+  }
+  bt_bmd_est<-cbind(bt_bmd_est,btone)
+}
+
+sqrt(var(bt_bmd_est))
+
+normone<-NULL
+for(snp in bmdsigsnp){
+  gt=dat[,snp]
+  gt[gt==2]<-0
+  fitlm=lm(dat[,'bmd_lmrabs_1']~dat[,snp]+gt)
+  estone<-c(summary(fitlm)$coefficients[3,])
+  normone<-rbind(normone,estone)
+}
+
+
+```
+###
+
+```{r}
+ed<-read.table('fluctuating_asymmetry/table/Educational_attainment_years.tab',header=T)
+dat1<-merge(pheno,ed[,c('f.eid','edu_years_max')],by.x='FID',by.y='f.eid',all=F)
+dat2<-merge(dat1,disease,by='FID',all=F)
+dim(dat1)
+dim(dat2)
+cor(dat2[,'SUM_OF_CASES'],dat2[,'edu_years_max'],)
+
+
+
+```
+
+### nlme prepare data
+```{r, eval=F}
+trait=c('logmar','srt','bmd','hgs','fatpct')
+
+datright1<-cbind(fid=datqced[,'FID'],side=0,visit='1',datqced[,c(paste(trait,'_r1',sep=''))])
+colnames(datright1)<-c('fid','side','visit',trait)
+
+datright2<-cbind(fid=datqced[,'FID'],side=0,visit='2',datqced[,c(paste(trait,'_r2',sep=''))])
+colnames(datright2)<-c('fid','side','visit',trait)
+
+datleft1<-cbind(fid=datqced[,'FID'],side=1,visit='1',datqced[,c(paste(trait,'_l1',sep=''))])
+colnames(datleft1)<-c('fid','side','visit',trait)
+
+datleft2<-cbind(fid=datqced[,'FID'],side=1,visit='2',datqced[,c(paste(trait,'_l2',sep=''))])
+colnames(datleft2)<-c('fid','side','visit',trait)
+
+datlong<-rbind(datright1,datleft1,datright2,datleft2)
+#save(datlong,file='datlong.txt',col.names)
+```
+### nlme prepare data
+```{r, eval=F}
+
+trait='hgs'
+fit<-as.formula(paste(trait,'~side+(side|fid)',sep=''))
+fit
+lmer_fit<-lmer(fit,data=datlong,na.action = na.omit,REML=FALSE)
+
+fit<-as.formula(paste(trait,'~side',sep=''))
+lme(datlong[,trait]~datlong[,'side'],random=~1|datlong[,'fid'])
+
+library(nlme)
+
+fit<-as.formula(paste(trait,'~side',sep=''))
+fit
+lme(fit,data=datlong,random=~1|fid,na.action=na.omit,method='ML')
+lme(fit,data=datlong,random=~1|fid,na.action=na.omit,method='ML')
+
+fitfull2<-lme(fit,data=datlong,random=list(~side|fid,~1|visit),na.action=na.omit,method='ML')
+fitnull2<-lme(fit,data=datlong,random=~1|fid+(1|visit),na.action=na.omit,method='ML')
+
+fitfull2<-lme(fit,data=datlong,random=list(~side|fid,~1|visit),na.action=na.omit,method='ML')
+
+fitnull0<-lme(fit,data=datlong,na.action=na.omit,method='ML')
+
+anova(fitnull,fitfull)
+
+VarCorr(fitfull)$fid
+
+```
+
+
+### nlme prepare data
+```{r, eval=F}
+setwd("fluctuating_asymmetry")
+datlong<-read.table('fluctuating_asymmetry/datlong.txt',header=TRUE)
+
+trait='hgs'
+fit<-as.formula(paste(trait,'~as.factor(side)+(side|fid) +(1|visit)',sep=''))
+fit
+lmer_fit<-lmer(fit,data=datlong,na.action = na.omit,REML=FALSE)
+
+
+dattemp<-datlong[!is.na(datlong[,'srt']),]
+
+fit<-as.formula(paste(trait,'~side+(1|fid)+(0+side|fid)+(1|visit)',sep=''))
+lmer_fit<-lmer(fit,data=datlong,na.action = na.omit,REML=FALSE
+                ,control=lmerControl(boundary.tol = 1e-10,
+                                     check.conv.grad     = .makeCC("warning", tol = 1e-3, relTol = NULL),
+                                     check.conv.singular = .makeCC(action = "message", tol = formals(isSingular)$tol)))
+
+                                     
+                                     check.conv.singular = .makeCC(action = "warning",  tol = formals(isSingular)$tol)))))
+
+
+               
+
+VarCorr(lmer_fit)$fid
+sigma(lmer_fit)^2
+
+
+lmer_fit2<-lmer(fit,data=datlong,na.action = na.omit,REML=FALSE
+                ,control=lmerControl(
+                                    check.conv.singular = .makeCC(action = "warning",  tol = formals(isSingular)$tol)))
+               
+
+
+
+
+```
+
+
+```{r, eval=F}
+### change the format
+wasfid<-colnames(dat)
+table(substr(wasfid,1,nchar(wasfid)-4))
+
+### change the colnames (left, right, trait)
+cnunique<-unique(substr(wasfid,1,nchar(wasfid)-4))[-1]
+length(cnunique)
+
+idx<-rep(paste('r',1:3,sep=''),each=nrow(dat))
+datsh<-cbind(rep(dat[,1],3),idx)
+
+for(i in 1:length(cnunique)){
+  cat(i,'\n')
+  was<-which(substr(wasfid,1,nchar(wasfid)-4)==cnunique[i])
+  datp<-dat[,was]
+  datone<-unlist(datp)
+  if(length(was)<3){
+    datone<-c(datone,rep(NA,nrow(dat)*(3-length(was))))
+    }
+  datsh<-cbind(datsh,datone)
+  
+}
+
+colnames(datsh)<-c('id','idx',cnunique)
+rownames(datsh)<-NULL
+datsh<-as.data.frame(datsh)
+datsh[,3:ncol(datsh)]<-sapply(datsh[,3:ncol(datsh)],as.numeric)
+
+```
+## Alternative way of obatin |L-R|: R-L 
+1) adjust fixed effects, 2) R-L 3.1) INT 3.2) |R-L| Then INT
+### Within each sex, and visit, exclude outliers(4sd), then adjust phenotype with agt at visting, accessment center, handedness,PC10, INT
+```{r eval=F}
+
+female<-datsel_EURu[datsel_EURu$sex==0,]
+male<-datsel_EURu[datsel_EURu$sex==1,]
+
+npc<-10
+
+for(trait in c('logmar','srt','bmd','hgs','fatpct','FATPCT2')){
+  for(vt in c('l1','r1','l2','r2')){
+    wasvt<-substr(vt,2,2)
+    wo<-paste(trait,vt,sep='_')
+### female
+
+	wona<-c(which(female[,wo]>(mean(female[,wo],na.rm=TRUE)
+		+4*sd(female[,wo],na.rm=TRUE))), which(female[,wo]< (mean(female[,wo],na.rm=TRUE)
+		-4*sd(female[,wo],na.rm=TRUE))))
+	
+  if(length(wona)>0){female[wona,wo]<-NA}	
+	### adjust aga at 
+  fit<-as.formula(paste(wo,'~ageatv',wasvt,'+factor(assesscenter)+hand1+',paste('PC',1:npc,sep='',collapse='+'),sep=''))
+
+	lmr<-lm(fit,data=female)
+	female[-lmr$na.action,wo]<-qnorm((rank(lmr$residuals)-0.5)/length(lmr$residuals))
+	female[+lmr$na.action,wo]<-NA
+	rm(wona)
+### male
+	wona<-c(which(male[,wo]>mean(male[,wo],na.rm=TRUE)
+		+4*sd(male[,wo],na.rm=TRUE)), which(male[,wo]< mean(male[,wo],na.rm=TRUE)
+		-4*sd(male[,wo],na.rm=TRUE)))
+	if(length(wona)>0){male[wona,wo]<-NA}
+
+	lmrmale<-lm(fit,data=male)
+	male[-lmrmale$na.action,wo]<-qnorm((rank(lmrmale$residuals)-0.5)/length(lmrmale$residuals))
+	male[+lmrmale$na.action,wo]<-NA
+	
+  }
+  
+}
+datsel_EURuqced<-rbind(female,male)
+dim(datsel_EURuqced)
+
+dim(datsel_EURu)
+```
